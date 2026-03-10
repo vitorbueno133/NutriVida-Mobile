@@ -506,13 +506,6 @@ export default function Home() {
 
           {/* Mini Cards de Resumo */}
           <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <View style={styles.statIconBg}>
-                <Flame color="#FFB800" size={24} strokeWidth={2} />
-              </View>
-              <Text style={styles.statValue}>1.450</Text>
-              <Text style={styles.statLabel}>kcal hoje</Text>
-            </View>
 
             <View style={styles.statCard}>
               <View style={styles.statIconBg}>

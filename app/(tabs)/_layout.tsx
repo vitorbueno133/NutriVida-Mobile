@@ -108,7 +108,7 @@ export default function TabLayout() {
         />
 
         <Tabs.Screen
-          name="cardapio"
+          name="opcoescardapio"
           options={{
             title: 'Cardápio',
             tabBarIcon: ({ color }) => (
@@ -139,6 +139,13 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="perfil"
+          options={{
+            href: null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="cardapio"
           options={{
             href: null,
           }}
