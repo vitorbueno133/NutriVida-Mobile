@@ -46,7 +46,8 @@ export default function CardapioForm() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-
+// 🔥 ADICIONE ESTE STATE JUNTO COM OS OUTROS
+const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nome: "",
     idade: "",
@@ -160,7 +161,7 @@ export default function CardapioForm() {
     try {
       // 1. Salvar respostas
       const { ok: ok1, data: respostaBackend } = await safeFetch(
-        "http://192.168.14.207:3000/respostas",
+        "http://192.168.3.243:3000/respostas",
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) }
       );
 
@@ -172,7 +173,7 @@ export default function CardapioForm() {
 
       // 2. Gerar cardápio
       const { ok: ok2, data: result } = await safeFetch(
-        `http://192.168.14.207:3000/cardapio/CardapioCriado?timestamp=${Date.now()}`,
+        `http://192.168.3.243:3000/cardapio/CardapioCriado?timestamp=${Date.now()}`,
         { method: "POST", headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" }, body: JSON.stringify(dados) }
       );
 
@@ -183,10 +184,12 @@ export default function CardapioForm() {
 
       const hash_respostas = CryptoJS.SHA256(JSON.stringify(dados)).toString();
       const cardapioParaSalvar =
-        typeof result.data === "string" ? result.data : JSON.stringify(result.data);
+  typeof result.data === "string"
+    ? result.data
+    : JSON.stringify(result.data, null, 2);
 
       // 3. Salvar cardápio (silencioso se falhar)
-      await safeFetch("http://192.168.14.207:3000/salvarCardapio", {
+      await safeFetch("http://192.168.3.243:3000/salvarCardapio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -200,7 +203,7 @@ export default function CardapioForm() {
 
       esconderLoading(setLoading);
       showToast("Cardápio gerado com sucesso!", "sucesso");
-      setTimeout(() => router.push("/cardapioGerado"), 2000);
+      setCardapioGerado(cardapioParaSalvar);
 
     } catch (error) {
       esconderLoading(setLoading);
@@ -383,6 +386,49 @@ export default function CardapioForm() {
       );
     }
   };
+
+  if (cardapioGerado) {
+  return (
+    <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1, padding: 20 }}>
+        <Text style={{
+          color: "#00E676",
+          fontSize: 22,
+          fontWeight: "bold",
+          marginBottom: 20
+        }}>
+          🥗 Seu Cardápio Personalizado
+        </Text>
+
+        <Text style={{
+          color: "#fff",
+          fontSize: 15,
+          lineHeight: 24
+        }}>
+          {cardapioGerado}
+        </Text>
+
+        <TouchableOpacity
+          style={{
+            marginTop: 30,
+            backgroundColor: "#00E676",
+            padding: 15,
+            borderRadius: 12
+          }}
+          onPress={() => setCardapioGerado(null)}
+        >
+          <Text style={{
+            textAlign: "center",
+            fontWeight: "bold",
+            color: "#0a1f1a"
+          }}>
+            Gerar outro cardápio
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </LinearGradient>
+  );
+}
 
   return (
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>

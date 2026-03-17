@@ -29,7 +29,7 @@ app.get('/dados', (req, res) => { // aqui estou criando minha rota/endpoint cham
 });
 
 app.use('/cardapio', criarCardapioRotas);
-app.use("/salvarCardapio", salvarCardapioRouters);
-app.use("/respostas", salvarRespostasRouters);
+app.use('/salvarCardapio', salvarCardapioRouters);
+app.use('/respostas', salvarRespostasRouters);
 
 app.listen(3000, () => console.log("API rodando na porta 3000"));

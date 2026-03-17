@@ -9,8 +9,16 @@ router.post("/", async (req, res) => {
   try {
     console.log("📥 JSON recebido:", req.body);
 
-    // usuario_id é opcional — pode ser null para usuários não logados
-    const respostas_id = await salvarRespostaService.salvarRespostas(req.body);
+    // 🔧 Corrige usuario_id NULL
+    const dados = {
+      ...req.body,
+      usuario_id: req.body.usuario_id ?? 1 // valor padrão para teste
+    };
+
+    // 🔎 Debug (pode remover depois)
+    console.log("👉 usuario_id usado:", dados.usuario_id);
+
+    const respostas_id = await salvarRespostaService.salvarRespostas(dados);
 
     res.status(200).json({
       sucesso: true,
@@ -33,6 +41,13 @@ router.post("/", async (req, res) => {
 router.get("/usuario/:usuario_id", async (req, res) => {
   try {
     const usuario_id = req.params.usuario_id;
+
+    if (!usuario_id) {
+      return res.status(400).json({
+        sucesso: false,
+        erro: "usuario_id é obrigatório"
+      });
+    }
 
     const respostas = await salvarRespostaService.listarDoUsuario(usuario_id);
 

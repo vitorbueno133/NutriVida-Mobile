@@ -3,7 +3,7 @@ const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 const salvarCardapioService = require("../Model/salvarCardapioService");
-const { banco } = require("../model/database");
+const { banco } = require("../Model/database");
 const natural = require("natural");
 
 // =========================================

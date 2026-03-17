@@ -5,7 +5,7 @@ class CreateNutritionService {
     const { name, weight, height, age, gender, objective, level, imc, alergia, alimentosFavoritos, trabalho, esporte, dietaAtual, rotina, tempoPreparo } = data;
 
     try {
-      const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+      const genAI = new GoogleGenerativeAI("AIzaSyCdSWgPnzJcoBbB6-36HHKWwln0aMF4pnI");
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const alergiaTexto = alergia
         ? `a pessoa possui a seguinte alergia: ${alergia}. O cardapio deve ser feito evitando essa alergia e o campo alergia no json deve conter exatamente esse valor: "${alergia}".`

@@ -38,6 +38,7 @@
     "express": "^5.2.1",
     "lucide-react-native": "^0.542.0",
     "mysql2": "^3.20.0",
+    "natural": "^8.1.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
