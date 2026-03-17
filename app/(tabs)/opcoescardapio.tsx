@@ -104,7 +104,7 @@ export default function CardapioHome() {
         <Animated.View style={{ transform: [{ translateY: slideCard2 }], opacity: fadeAnim }}>
           <TouchableOpacity
             style={[styles.card, styles.cardBlue]}
-            onPress={() => router.push("/historico-cardapio")}
+            onPress={() => router.push("/historicoCardapio")}
             activeOpacity={0.85}
           >
             <LinearGradient colors={["#3B82F614", "#3B82F605"]} style={styles.cardGradient}>

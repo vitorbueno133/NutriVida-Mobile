@@ -4,6 +4,11 @@ const mysql = require('mysql2'); //permite enviar sql para o BD
 const cors = require('cors');// cors evita bloqueios nas requisições
 const app = express();
 
+const criarCardapioRotas = require('./View/criarCardapioRouters');
+const salvarCardapioRouters = require('./View/salvarCardapioRouters');
+const salvarRespostasRouters = require('./View/salvarRespostaRouters');
+
+
 app.use(cors());
 app.use(express.json());// fala para o express entender quando enviamos dados Json
 
@@ -17,11 +22,14 @@ const db = mysql.createConnection({
 
 // Rota para buscar dados
 app.get('/dados', (req, res) => { // aqui estou criando minha rota/endpoint chamado /dados
-    db.query('SELECT * FROM contatos', (err, result) => {  //estou falando para o sql me dar tudo da tabela lembretes
-        if (err) return res.status(500).send(err); //se der ruim no BD retorna status 500
-        res.json(result); // se der bom no BD, ele pega as linahs do banco e retorna em formato json.
+    db.query('SELECT * FROM cardapio', (err, result) => { 
+        if (err) return res.status(500).send(err);
+        res.json(result);
     });
 });
 
-// aqui ligamos o servidor para deixar a PI rodando
+app.use('/cardapio', criarCardapioRotas);
+app.use("/salvarCardapio", salvarCardapioRouters);
+app.use("/respostas", salvarRespostasRouters);
+
 app.listen(3000, () => console.log("API rodando na porta 3000"));

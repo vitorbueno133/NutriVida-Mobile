@@ -145,6 +145,13 @@ export default function TabLayout() {
         />
 
         <Tabs.Screen
+          name="historicoCardapio"
+          options={{
+            href: null,
+          }}
+        />
+
+        <Tabs.Screen
           name="cardapio"
           options={{
             href: null,
