@@ -161,7 +161,7 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
     try {
       // 1. Salvar respostas
       const { ok: ok1, data: respostaBackend } = await safeFetch(
-        "http://192.168.3.243:3000/respostas",
+        "http://192.168.14.207:3000/respostas",
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) }
       );
 
@@ -173,7 +173,7 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
 
       // 2. Gerar cardápio
       const { ok: ok2, data: result } = await safeFetch(
-        `http://192.168.3.243:3000/cardapio/CardapioCriado?timestamp=${Date.now()}`,
+        `http://192.168.14.207:3000/cardapio/CardapioCriado?timestamp=${Date.now()}`,
         { method: "POST", headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" }, body: JSON.stringify(dados) }
       );
 
@@ -189,7 +189,7 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
     : JSON.stringify(result.data, null, 2);
 
       // 3. Salvar cardápio (silencioso se falhar)
-      await safeFetch("http://192.168.3.243:3000/salvarCardapio", {
+      await safeFetch("http://192.168.14.207:3000/salvarCardapio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

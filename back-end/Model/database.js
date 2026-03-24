@@ -11,10 +11,14 @@ const db_host = process.env.DB_HOST;
 const db_port = process.env.DB_PORT || 3306;  // Defina um valor padrão para a porta
 
 const banco = mysql.createPool({
-    host: 'localhost',// nesse caso o banco está meu computador
-    user: 'root', 
-    password: '', // Senha padrão do xampp costuma ser vazia
-    database: 'nutri_vida'// nome do meu banco
+  host: db_host,
+  user: db_user,
+  password: db_pass,
+  database: db_name,
+  port: db_port,  // A porta do banco
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 // Verificando a conexão

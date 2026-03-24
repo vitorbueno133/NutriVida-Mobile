@@ -22,7 +22,7 @@ export default function TabOneScreen() {
   useEffect(() => {
     async function buscarDados() {
       try {
-        const resposta = await fetch('http://192.168.3.243:3000/dados');
+        const resposta = await fetch('http://192.168.14.207:3000/dados');
         const json = await resposta.json();
         setDados(json);
       } catch (erro) {
