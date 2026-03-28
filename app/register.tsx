@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
@@ -11,22 +10,42 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react-native";
+import { Eye, EyeOff, Mail, Lock, User, AlertCircle } from "lucide-react-native";
+import { Linking } from 'react-native';
 
 const logoApp = require("@/assets/images/Logonutri.png");
 
+// IP da sua máquina
+const API_URL = 'http://192.168.3.243:3000';
+
 export default function Register() {
   const router = useRouter();
-  const [nome, setNome] = useState<string>("");
-  const [login, setLogin] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [password2, setPassword2] = useState<string>("");
-  const [celular, setCelular] = useState<string>("");
+  
+  // Estados para capturar os inputs
+  const [nomes, setNomes] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [senha, setSenha] = useState<string>("");
+  
   const [showPassword, setShowPassword] = useState(false);
-  const [showPassword2, setShowPassword2] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Estados de Erro em Linha
+  const [nomeError, setNomeError] = useState<string>("");
+  const [emailError, setEmailError] = useState<string>("");
+  const [senhaError, setSenhaError] = useState<string>("");
+
+  // Estado do Alerta Customizado
+  // Adicionamos 'onConfirm' para poder redirecionar o usuário após o sucesso
+  const [alertConfig, setAlertConfig] = useState({ 
+    visible: false, 
+    title: "", 
+    message: "", 
+    onConfirm: null as (() => void) | null 
+  });
 
   // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -54,53 +73,86 @@ export default function Register() {
     ]).start();
   }, []);
 
-  function formatPhone(text: string) {
-    const cleaned = text.replace(/\D/g, "");
-    let formatted = cleaned;
+  // --- FUNÇÕES AUXILIARES DE ALERTA ---
+  const showCustomAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setAlertConfig({ visible: true, title, message, onConfirm: onConfirm || null });
+  };
 
-    if (cleaned.length >= 11) {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
-    } else if (cleaned.length >= 7) {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
-    } else if (cleaned.length >= 2) {
-      formatted = `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+  const closeCustomAlert = () => {
+    if (alertConfig.onConfirm) {
+      alertConfig.onConfirm(); // Executa a ação (ex: ir para o login) se existir
+    }
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
+
+  // --- VALIDAÇÕES EM LINHA ---
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // O formulário só é válido se todos os campos passarem nas regras
+  const isFormValid = nomes.trim() !== "" && isValidEmail(email) && senha.length >= 8;
+
+  function handleValidationErrors() {
+    setNomeError("");
+    setEmailError("");
+    setSenhaError("");
+
+    if (!nomes.trim()) {
+      setNomeError("Informe seu nome completo.");
     }
 
-    return formatted;
+    if (!email) {
+      setEmailError("Informe o e-mail.");
+    } else if (!isValidEmail(email)) {
+      setEmailError("Formato de e-mail inválido (ex: seu@email.com).");
+    }
+
+    if (!senha) {
+      setSenhaError("Informe a senha.");
+    } else if (senha.length < 8) {
+      setSenhaError("A senha deve conter no mínimo 8 dígitos.");
+    }
   }
 
-  function onClickRegistrar() {
-    if (!nome || !login || !password || !password2 || !celular) {
-      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
+  // --- FUNÇÕES DE API ---
+  async function onClickRegistrar() {
+    if (!isFormValid) {
+      handleValidationErrors();
       return;
     }
-    if (password !== password2) {
-      Alert.alert("Erro", "As senhas não coincidem.");
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert("Erro", "A senha deve ter no mínimo 6 caracteres.");
-      return;
-    }
-    Alert.alert(
-      "Sucesso",
-      "Cadastro realizado com sucesso!",
-      [
-        {
-          text: "OK",
-          onPress: () => router.push("/login"),
-        },
-      ]
-    );
-  }
+    
+    setIsLoading(true);
 
-  const isFormValid =
-    nome.trim() !== "" &&
-    login.trim() !== "" &&
-    password.trim() !== "" &&
-    password2.trim() !== "" &&
-    celular.trim() !== "" &&
-    password === password2;
+    try {
+      const response = await fetch(`${API_URL}/usuarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          nome_usuario: nomes, 
+          email: email, 
+          senha: senha 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Erro ao realizar o cadastro.");
+      }
+
+      // Alerta de sucesso chamando a rota de login no botão "OK"
+      showCustomAlert("Sucesso", "Cadastro realizado com sucesso!", () => {
+        router.push("/login");
+      });
+
+    } catch (error: any) {
+      showCustomAlert("Erro no cadastro", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>
@@ -124,13 +176,10 @@ export default function Register() {
               ]}
             >
               <Image source={logoApp} style={styles.logo} resizeMode="contain" />
-              <Text style={styles.saudacao}>Crie sua conta e comece hoje!</Text>
-              <Text style={styles.subtitle}>
-                Junte-se a milhares de pessoas
-              </Text>
+              <Text style={styles.saudacao}>Cadastre-se</Text>
             </Animated.View>
 
-            {/* Form */}
+            {/* Formulario */}
             <Animated.View
               style={[
                 styles.main,
@@ -142,85 +191,59 @@ export default function Register() {
             >
               {/* Nome Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Nome Completo</Text>
-                <View style={styles.inputWrapper}>
-                  <User
-                    color="#00E676"
-                    size={20}
-                    strokeWidth={2}
-                    style={styles.inputIcon}
-                  />
+                <Text style={styles.label}>Digite seu nome completo</Text>
+                <View style={[styles.inputWrapper, nomeError ? styles.inputErrorBorder : null]}>
+                  <User color="#00E676" size={20} strokeWidth={2} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Seu nome completo"
+                    placeholder="Digite seu nome"
                     placeholderTextColor="#666"
-                    value={nome}
-                    onChangeText={setNome}
+                    value={nomes}
+                    onChangeText={(text) => {
+                      setNomes(text);
+                      setNomeError(""); // Limpa o erro ao digitar
+                    }}
                   />
                 </View>
+                {nomeError ? <Text style={styles.inlineErrorText}>{nomeError}</Text> : null}
               </View>
 
               {/* Email Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Email</Text>
-                <View style={styles.inputWrapper}>
-                  <Mail
-                    color="#00E676"
-                    size={20}
-                    strokeWidth={2}
-                    style={styles.inputIcon}
-                  />
+                <Text style={styles.label}>Digite seu e-mail</Text>
+                <View style={[styles.inputWrapper, emailError ? styles.inputErrorBorder : null]}>
+                  <Mail color="#00E676" size={20} strokeWidth={2} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
                     placeholder="seu@email.com"
                     placeholderTextColor="#666"
                     keyboardType="email-address"
                     autoCapitalize="none"
-                    value={login}
-                    onChangeText={setLogin}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setEmailError(""); 
+                    }}
                   />
                 </View>
-              </View>
-
-              {/* Celular Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Celular</Text>
-                <View style={styles.inputWrapper}>
-                  <Phone
-                    color="#00E676"
-                    size={20}
-                    strokeWidth={2}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="(00) 00000-0000"
-                    placeholderTextColor="#666"
-                    keyboardType="phone-pad"
-                    maxLength={15}
-                    value={celular}
-                    onChangeText={(text) => setCelular(formatPhone(text))}
-                  />
-                </View>
+                {emailError ? <Text style={styles.inlineErrorText}>{emailError}</Text> : null}
               </View>
 
               {/* Senha Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Senha</Text>
-                <View style={styles.inputWrapper}>
-                  <Lock
-                    color="#00E676"
-                    size={20}
-                    strokeWidth={2}
-                    style={styles.inputIcon}
-                  />
+                <Text style={styles.label}>Digite sua senha</Text>
+                <View style={[styles.inputWrapper, senhaError ? styles.inputErrorBorder : null]}>
+                  <Lock color="#00E676" size={20} strokeWidth={2} style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo de 8 dígitos"
                     placeholderTextColor="#666"
                     secureTextEntry={!showPassword}
-                    value={password}
-                    onChangeText={setPassword}
+                    value={senha}
+                    onChangeText={(text) => {
+                      setSenha(text);
+                      setSenhaError("");
+                    }}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
@@ -234,80 +257,8 @@ export default function Register() {
                     )}
                   </TouchableOpacity>
                 </View>
+                {senhaError ? <Text style={styles.inlineErrorText}>{senhaError}</Text> : null}
               </View>
-
-              {/* Confirmar Senha Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Confirmar Senha</Text>
-                <View style={styles.inputWrapper}>
-                  <Lock
-                    color="#00E676"
-                    size={20}
-                    strokeWidth={2}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Repita sua senha"
-                    placeholderTextColor="#666"
-                    secureTextEntry={!showPassword2}
-                    value={password2}
-                    onChangeText={setPassword2}
-                  />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword2(!showPassword2)}
-                    style={styles.eyeIcon}
-                    activeOpacity={0.7}
-                  >
-                    {showPassword2 ? (
-                      <EyeOff color="#666" size={20} strokeWidth={2} />
-                    ) : (
-                      <Eye color="#666" size={20} strokeWidth={2} />
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Indicador de Senha */}
-              {password.length > 0 && (
-                <View style={styles.passwordStrength}>
-                  <View
-                    style={[
-                      styles.strengthBar,
-                      {
-                        width:
-                          password.length < 6
-                            ? "33%"
-                            : password.length < 8
-                            ? "66%"
-                            : "100%",
-                        backgroundColor:
-                          password.length < 6
-                            ? "#EF4444"
-                            : password.length < 8
-                            ? "#FFB800"
-                            : "#00E676",
-                      },
-                    ]}
-                  />
-                  <Text style={styles.strengthText}>
-                    {password.length < 6
-                      ? "Senha fraca"
-                      : password.length < 8
-                      ? "Senha média"
-                      : "Senha forte"}
-                  </Text>
-                </View>
-              )}
-
-              {/* Validação de senhas iguais */}
-              {password2.length > 0 && password !== password2 && (
-                <Text style={styles.errorText}>⚠️ As senhas não coincidem</Text>
-              )}
-
-              {password2.length > 0 && password === password2 && (
-                <Text style={styles.successText}>✓ As senhas coincidem</Text>
-              )}
 
               {/* Botão Criar Conta */}
               {isFormValid ? (
@@ -315,6 +266,7 @@ export default function Register() {
                   style={styles.button}
                   onPress={onClickRegistrar}
                   activeOpacity={0.8}
+                  disabled={isLoading}
                 >
                   <LinearGradient
                     colors={["#00E676", "#00C853"]}
@@ -322,238 +274,158 @@ export default function Register() {
                     end={{ x: 1, y: 0 }}
                     style={styles.buttonGradient}
                   >
-                    <Text style={styles.buttonText}>Criar Conta</Text>
+                    <Text style={styles.buttonText}>{isLoading ? "Cadastrando..." : "Cadastrar"}</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
                   style={styles.buttonDisabled}
-                  onPress={() =>
-                    Alert.alert("Atenção", "Preencha todos os campos corretamente.")
-                  }
+                  onPress={handleValidationErrors}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.buttonTextDisabled}>Criar Conta</Text>
+                  <Text style={styles.buttonTextDisabled}>Cadastrar</Text>
                 </TouchableOpacity>
               )}
 
-              {/* Termos */}
-              <Text style={styles.termsText}>
-                Ao criar uma conta, você concorda com nossos{" "}
-                <Text style={styles.termsLink}>Termos de Uso</Text> e{" "}
-                <Text style={styles.termsLink}>Política de Privacidade</Text>
-              </Text>
+              {/* Divisor "ou" */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>ou</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Botão Google */}
+              <TouchableOpacity
+  style={styles.socialButton}
+  activeOpacity={0.8}
+  onPress={() => {
+    // Endereço da sua API que inicia o fluxo do Passport Google
+    Linking.openURL(`${API_URL}/auth/google`);
+  }}
+>
+  <Text style={styles.socialButtonText}>Cadastro com Google</Text>
+</TouchableOpacity>
+
             </Animated.View>
 
             {/* Footer */}
             <Animated.View
               style={[
                 styles.footer,
-                {
-                  opacity: fadeAnim,
-                },
+                { opacity: fadeAnim },
               ]}
             >
-              <Text style={styles.footerText}>Já tem uma conta?</Text>
+              <Text style={styles.footerText}>Já possui uma conta?</Text>
               <Link href="/login" asChild>
                 <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={styles.linkCriar}> Fazer login</Text>
+                  <Text style={styles.linkCriar}> Faça login</Text>
                 </TouchableOpacity>
               </Link>
             </Animated.View>
+
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* --- ALERTA CUSTOMIZADO ESTILIZADO --- */}
+      <Modal visible={alertConfig.visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertBox}>
+            <AlertCircle 
+              color={alertConfig.title === "Sucesso" ? "#00E676" : "#EF4444"} 
+              size={40} 
+              style={{ marginBottom: 15 }} 
+            />
+            <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+            
+            <TouchableOpacity style={styles.alertButton} onPress={closeCustomAlert}>
+              <Text style={styles.alertButtonText}>OK, entendi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
+  gradient: { flex: 1 },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 30, paddingVertical: 40 },
+  header: { alignItems: "center", marginBottom: 30 },
+  logo: { width: 180, height: 70, marginBottom: 12 },
+  saudacao: { color: "#00E676", fontSize: 28, fontWeight: "800", marginBottom: 5 },
+  main: { width: "100%", backgroundColor: "rgba(255,255,255,0.08)", padding: 24, borderRadius: 20, borderWidth: 1, borderColor: "rgba(0, 230, 118, 0.2)" },
+  inputContainer: { marginBottom: 16 },
+  label: { fontWeight: "600", fontSize: 14, marginBottom: 8, color: "#bafdbc" },
+  inputWrapper: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.95)", borderRadius: 12, borderWidth: 2, borderColor: "transparent" },
+  inputIcon: { marginLeft: 14 },
+  input: { flex: 1, padding: 14, paddingLeft: 10, fontSize: 15, color: "#000" },
+  eyeIcon: { padding: 14 },
+  
+  // --- ESTILOS DE ERROS EM LINHA ---
+  inlineErrorText: { color: "#EF4444", fontSize: 12, marginTop: 6, marginLeft: 4, fontWeight: "500" },
+  inputErrorBorder: { borderColor: "#EF4444" },
+  
+  button: { borderRadius: 12, overflow: "hidden", marginTop: 20, elevation: 4, shadowColor: "#00E676", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  buttonGradient: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
+  buttonText: { color: "#0D332D", fontSize: 17, fontWeight: "bold" },
+  buttonDisabled: { backgroundColor: "rgba(255,255,255,0.1)", paddingVertical: 16, borderRadius: 12, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  buttonTextDisabled: { color: "#666", fontSize: 17, fontWeight: "bold" },
+  divider: { flexDirection: "row", alignItems: "center", marginTop: 25, marginBottom: 25, width: "100%" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.2)" },
+  dividerText: { color: "#666", paddingHorizontal: 15, fontSize: 13 },
+  socialButton: { backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 16, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  socialButtonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  footer: { flexDirection: "row", marginTop: 25, alignItems: "center" },
+  footerText: { color: "#bafdbc", fontSize: 14 },
+  linkCriar: { color: "#00E676", fontWeight: "bold", fontSize: 14 },
 
-  keyboardView: {
-    flex: 1,
+  // --- ESTILOS DO ALERTA CUSTOMIZADO ---
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: "rgba(10, 31, 26, 0.8)", 
+    justifyContent: "center", 
+    alignItems: "center", 
+    padding: 20 
   },
-
-  scrollContent: {
-    flexGrow: 1,
-  },
-
-  container: {
-    flex: 1,
-    justifyContent: "center",
+  alertBox: { 
+    width: "85%", 
+    backgroundColor: "rgba(15, 23, 42, 0.98)", 
+    borderRadius: 20, 
+    padding: 25, 
     alignItems: "center",
-    paddingHorizontal: 30,
-    paddingVertical: 40,
+    borderWidth: 1, 
+    borderColor: "rgba(255, 255, 255, 0.1)" 
   },
-
-  header: {
-    alignItems: "center",
-    marginBottom: 30,
+  alertTitle: { 
+    fontSize: 20, 
+    fontWeight: "bold", 
+    color: "#fff", 
+    marginBottom: 10, 
+    textAlign: "center" 
   },
-
-  logo: {
-    width: 180,
-    height: 70,
-    marginBottom: 12,
+  alertMessage: { 
+    fontSize: 15, 
+    color: "#bafdbc", 
+    textAlign: "center", 
+    marginBottom: 25,
+    lineHeight: 20
   },
-
-  saudacao: {
-    color: "#00E676",
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 5,
-  },
-
-  subtitle: {
-    color: "#bafdbc",
-    fontSize: 14,
-    fontWeight: "400",
-  },
-
-  main: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    padding: 24,
-    borderRadius: 20,
+  alertButton: { 
+    backgroundColor: "rgba(255,255,255,0.1)", 
+    paddingVertical: 12, 
+    paddingHorizontal: 30, 
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(0, 230, 118, 0.2)",
+    borderColor: "rgba(255,255,255,0.2)"
   },
-
-  inputContainer: {
-    marginBottom: 16,
-  },
-
-  label: {
-    fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 8,
-    color: "#bafdbc",
-  },
-
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-
-  inputIcon: {
-    marginLeft: 14,
-  },
-
-  input: {
-    flex: 1,
-    padding: 14,
-    paddingLeft: 10,
-    fontSize: 15,
-    color: "#000",
-  },
-
-  eyeIcon: {
-    padding: 14,
-  },
-
-  passwordStrength: {
-    marginTop: 8,
-    marginBottom: 8,
-  },
-
-  strengthBar: {
-    height: 4,
-    borderRadius: 2,
-    marginBottom: 6,
-  },
-
-  strengthText: {
-    fontSize: 12,
-    color: "#bafdbc",
-  },
-
-  errorText: {
-    color: "#EF4444",
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-
-  successText: {
-    color: "#00E676",
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-
-  button: {
-    borderRadius: 12,
-    overflow: "hidden",
-    marginTop: 20,
-    elevation: 4,
-    shadowColor: "#00E676",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-
-  buttonGradient: {
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  buttonText: {
-    color: "#0D332D",
-    fontSize: 17,
-    fontWeight: "bold",
-  },
-
-  buttonDisabled: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-
-  buttonTextDisabled: {
-    color: "#666",
-    fontSize: 17,
-    fontWeight: "bold",
-  },
-
-  termsText: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 16,
-    lineHeight: 18,
-  },
-
-  termsLink: {
-    color: "#00E676",
-    fontWeight: "600",
-  },
-
-  footer: {
-    flexDirection: "row",
-    marginTop: 25,
-    alignItems: "center",
-  },
-
-  footerText: {
-    color: "#bafdbc",
-    fontSize: 14,
-  },
-
-  linkCriar: {
-    color: "#00E676",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
+  alertButtonText: { 
+    color: "#fff", 
+    fontWeight: "bold", 
+    fontSize: 16 
+  }
 });

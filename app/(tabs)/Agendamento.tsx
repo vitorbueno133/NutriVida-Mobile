@@ -10,9 +10,11 @@ import {
   Animated,
   Modal,
   TextInput,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Search,
   Calendar,
@@ -27,44 +29,130 @@ import {
 const { width } = Dimensions.get("window");
 const perfilIcon = require("@/assets/images/perfilicon.png");
 const logoApp = require("@/assets/images/logo.png");
-// Imagem genérica para os consultórios, igual você usava no HTML
 const imgConsultorio = require("@/assets/images/consultorio.jpg");
+
+// IMPORTANTE: Coloque o IP da sua máquina na rede local
+const API_URL = 'http://192.168.3.243:3000'; 
 
 export default function HomeAgendamentos() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Estados para gerenciar os dados dinâmicos
   const [searchQuery, setSearchQuery] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
-
-  // Simulando os dados que vinham da sua API/LocalStorage
-  const usuario = { nome: "Vitor" }; 
-  
-  const agendamentoAtual = {
-    id: 1,
-    status: "Confirmado",
-    servico: "Checkup total",
-    consultorio: "NutriVida Centro",
-    endereco: "Avenida São Sebastião, 357, São Paulo",
-    data: "10 de Junho",
-    hora: "09:50",
-    valor: "R$ 150,00"
-  };
-
-  const consultoriosRecomendados = [
-    { id: 1, nome: "NutriVida Centro", endereco: "Avenida São Sebastião, 357" },
-    { id: 2, nome: "NutriVida Shopping", endereco: "Shopping Center - 2º piso" },
-    { id: 3, nome: "NutriVida Premium", endereco: "Rua das Flores, 567" },
-  ];
+  const [usuario, setUsuario] = useState({ nome: "Carregando..." });
+  const [agendamentoAtual, setAgendamentoAtual] = useState(null);
+  const [consultoriosRecomendados, setConsultoriosRecomendados] = useState([]);
+  const [consultoriosVisitados, setConsultoriosVisitados] = useState([]);
+  const [dataHoje, setDataHoje] = useState("");
 
   useEffect(() => {
+    // Animação de entrada
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
     }).start();
+
+    // Configurar a data de hoje dinamicamente (igual no Web)
+    const diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const hoje = new Date();
+    setDataHoje(`${diasSemana[hoje.getDay()]} ${hoje.getDate()} de ${meses[hoje.getMonth()]}`);
+
+    carregarDadosIniciais();
   }, []);
 
-  const dataHoje = "Sexta-feira 10 de junho"; // Pode ser gerado com Date() igual no HTML
+  const carregarDadosIniciais = async () => {
+    try {
+      // 1. Verifica Login
+      const usuarioRaw = await AsyncStorage.getItem("dadosUsuario");
+      if (!usuarioRaw) {
+        Alert.alert("Acesso Negado", "Você precisa estar logado para acessar esta página.");
+        router.replace("/entrar");
+        return;
+      }
+      
+      const user = JSON.parse(usuarioRaw);
+      setUsuario({ nome: user.nome_usuario, id: user.id });
+
+      // 2. Busca Agendamentos do Usuário
+      const resAgendamentos = await fetch(`${API_URL}/agendamentos`);
+      const agendamentos = await resAgendamentos.json();
+      
+      const meuAgendamento = agendamentos.find(a => a.usuario_id === user.id);
+      
+      if (meuAgendamento) {
+        const dataObj = new Date(meuAgendamento.data);
+        setAgendamentoAtual({
+          id: meuAgendamento.id,
+          status: "Confirmado",
+          servico: meuAgendamento.nome_servico || "Serviço",
+          consultorio: meuAgendamento.consultorio_nome || "Consultório",
+          dataCompleta: `${String(dataObj.getDate()).padStart(2, '0')} de ${meses[dataObj.getMonth()]}`,
+          mes: meses[dataObj.getMonth()].toUpperCase(),
+          dia: dataObj.getDate(),
+          hora: meuAgendamento.hora,
+          valor: meuAgendamento.preco ? `R$ ${Number(meuAgendamento.preco).toFixed(2)}` : "Não informado"
+        });
+      }
+
+      // 3. Busca e Distribui Consultórios
+      const resConsultorios = await fetch(`${API_URL}/consultorios`);
+      const consultorios = await resConsultorios.json();
+      consultorios.sort((a, b) => a.id - b.id);
+
+      const recomendados = [];
+      const visitados = [];
+
+      consultorios.forEach((c, index) => {
+        if (index % 3 === 0) recomendados.push(c);
+        else if (index % 3 === 1) visitados.push(c);
+      });
+
+      setConsultoriosRecomendados(recomendados);
+      setConsultoriosVisitados(visitados);
+
+    } catch (error) {
+      console.error("Erro ao carregar dados da API:", error);
+      Alert.alert("Erro de Conexão", "Não foi possível conectar ao servidor. Verifique se a API está rodando e se o IP está correto.");
+    }
+  };
+
+  const cancelarReserva = async () => {
+    if (!agendamentoAtual) return;
+
+    try {
+      const response = await fetch(`${API_URL}/agendamentos/${agendamentoAtual.id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error("Falha ao cancelar na API");
+
+      Alert.alert("Sucesso", "Reserva cancelada com sucesso!");
+      setAgendamentoAtual(null); // Limpa o card da tela
+      setModalVisible(false);    // Fecha o modal
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Erro", "Não foi possível cancelar a reserva no momento.");
+    }
+  };
+
+  const irParaReserva = async (consultorio) => {
+    try {
+      // Como na Web você usava localStorage para passar os dados para a próxima tela:
+      await AsyncStorage.setItem('consultorioSelecionado', JSON.stringify(consultorio));
+      
+      // Opcional: Se sua API exigir buscar os serviços antes de mudar de tela, 
+      // faça o fetch(`${API_URL}/consultorios/${consultorio.id}`) aqui.
+      
+      router.push({ pathname: '/reserva', params: { id: consultorio.id } });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>
@@ -104,39 +192,46 @@ export default function HomeAgendamentos() {
           {/* Card: Próximo Agendamento */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Seu Próximo Agendamento</Text>
-            <TouchableOpacity 
-              style={styles.appointmentCard}
-              activeOpacity={0.8}
-              onPress={() => setModalVisible(true)}
-            >
-              <View style={styles.appointmentLeft}>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusText}>● {agendamentoAtual.status}</Text>
+            
+            {agendamentoAtual ? (
+              <TouchableOpacity 
+                style={styles.appointmentCard}
+                activeOpacity={0.8}
+                onPress={() => setModalVisible(true)}
+              >
+                <View style={styles.appointmentLeft}>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>● {agendamentoAtual.status}</Text>
+                  </View>
+                  <Text style={styles.appointmentService}>{agendamentoAtual.servico}</Text>
+                  <Text style={styles.appointmentClinic}>{agendamentoAtual.consultorio}</Text>
                 </View>
-                <Text style={styles.appointmentService}>{agendamentoAtual.servico}</Text>
-                <Text style={styles.appointmentClinic}>{agendamentoAtual.consultorio}</Text>
-              </View>
-              <View style={styles.appointmentRight}>
-                <Text style={styles.appointmentMonth}>JUNHO</Text>
-                <Text style={styles.appointmentDay}>10</Text>
-                <Text style={styles.appointmentTime}>09:50</Text>
-              </View>
-            </TouchableOpacity>
+                <View style={styles.appointmentRight}>
+                  <Text style={styles.appointmentMonth}>{agendamentoAtual.mes}</Text>
+                  <Text style={styles.appointmentDay}>{agendamentoAtual.dia}</Text>
+                  <Text style={styles.appointmentTime}>{agendamentoAtual.hora}</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+               <View style={[styles.appointmentCard, { justifyContent: 'center', paddingVertical: 40 }]}>
+                 <Text style={{ color: '#94a3b8', fontSize: 16 }}>Você não possui reservas no momento.</Text>
+               </View>
+            )}
           </View>
 
+          {/* Recomendados */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Consultórios Disponíveis</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carouselContainer}>
               {consultoriosRecomendados.map((item) => (
                 <View key={item.id} style={styles.clinicCard}>
-                  <Image source={imgConsultorio} style={styles.clinicImage} />
+                  <Image source={item.imagem ? { uri: item.imagem } : imgConsultorio} style={styles.clinicImage} />
                   <View style={styles.clinicCardContent}>
                     <Text style={styles.clinicCardTitle}>{item.nome}</Text>
                     <Text style={styles.clinicCardAddress} numberOfLines={2}>{item.endereco}</Text>
                     <TouchableOpacity 
                       style={styles.bookButton}
-                      
-                      onPress={() => router.push({ pathname: '/reserva', params: { id: item.id } })} 
+                      onPress={() => irParaReserva(item)} 
                     >
                       <Text style={styles.bookButtonText}>Reservar</Text>
                     </TouchableOpacity>
@@ -146,16 +241,20 @@ export default function HomeAgendamentos() {
             </ScrollView>
           </View>
 
+          {/* Mais Visitados */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Mais Visitados</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carouselContainer}>
-              {consultoriosRecomendados.map((item) => (
+              {consultoriosVisitados.map((item) => (
                 <View key={`visited-${item.id}`} style={styles.clinicCard}>
-                  <Image source={imgConsultorio} style={styles.clinicImage} />
+                  <Image source={item.imagem ? { uri: item.imagem } : imgConsultorio} style={styles.clinicImage} />
                   <View style={styles.clinicCardContent}>
                     <Text style={styles.clinicCardTitle}>{item.nome}</Text>
                     <Text style={styles.clinicCardAddress} numberOfLines={2}>{item.endereco}</Text>
-                    <TouchableOpacity style={styles.bookButton}>
+                    <TouchableOpacity 
+                      style={styles.bookButton}
+                      onPress={() => irParaReserva(item)}
+                    >
                       <Text style={styles.bookButtonText}>Reservar</Text>
                     </TouchableOpacity>
                   </View>
@@ -167,55 +266,64 @@ export default function HomeAgendamentos() {
         </Animated.View>
       </ScrollView>
 
-      <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Verificar Reserva</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-                <X color="#ef4444" size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Image source={imgConsultorio} style={styles.modalMapImage} />
-              
-              <View style={styles.modalStatusBadge}>
-                <Text style={styles.modalStatusText}>● {agendamentoAtual.status}</Text>
+      {/* Modal Verificar Reserva */}
+      {agendamentoAtual && (
+        <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Verificar Reserva</Text>
+                <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                  <X color="#ef4444" size={24} />
+                </TouchableOpacity>
               </View>
 
-              <View style={styles.modalDetailsContainer}>
-                <Text style={styles.modalDetailsTitle}>{agendamentoAtual.servico}</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Image source={imgConsultorio} style={styles.modalMapImage} />
                 
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Data</Text>
-                  <Text style={styles.detailValue}>{agendamentoAtual.data}</Text>
+                <View style={styles.modalStatusBadge}>
+                  <Text style={styles.modalStatusText}>● {agendamentoAtual.status}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Horário</Text>
-                  <Text style={styles.detailValue}>{agendamentoAtual.hora}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Consultório</Text>
-                  <Text style={styles.detailValue}>{agendamentoAtual.consultorio}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Valor</Text>
-                  <Text style={styles.detailValue}>{agendamentoAtual.valor}</Text>
-                </View>
-              </View>
 
-              <TouchableOpacity style={styles.cancelButton} activeOpacity={0.8}>
-                <Text style={styles.cancelButtonText}>Cancelar Reserva</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                <View style={styles.modalDetailsContainer}>
+                  <Text style={styles.modalDetailsTitle}>{agendamentoAtual.servico}</Text>
+                  
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Data</Text>
+                    <Text style={styles.detailValue}>{agendamentoAtual.dataCompleta}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Horário</Text>
+                    <Text style={styles.detailValue}>{agendamentoAtual.hora}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Consultório</Text>
+                    <Text style={styles.detailValue}>{agendamentoAtual.consultorio}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Valor</Text>
+                    <Text style={styles.detailValue}>{agendamentoAtual.valor}</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.cancelButton} 
+                  activeOpacity={0.8}
+                  onPress={cancelarReserva}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar Reserva</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
     </LinearGradient>
   );
 }
+
+// ... Manter todo o bloco const styles = StyleSheet.create({...}) exatamente como você enviou
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },

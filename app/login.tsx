@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
@@ -10,18 +9,41 @@ import {
   Animated,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react-native";
+import { Eye, EyeOff, Mail, Lock, X, AlertCircle } from "lucide-react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking } from 'react-native';
 
 const logoApp = require("@/assets/images/Logonutri.png");
 
+// Substitua pelo IP da sua máquina
+const API_URL = 'http://192.168.3.243:3000'; 
+
 export default function Login() {
   const router = useRouter();
+  
+  // Estados de Login
   const [login, setLogin] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Estados de Erro em Linha (Mensagens abaixo dos campos)
+  const [emailError, setEmailError] = useState<string>("");
+  const [passwordError, setPasswordError] = useState<string>("");
+
+  // Estados dos Modais de Recuperação e Alerta Customizado
+  const [modalRecuperacaoVisible, setModalRecuperacaoVisible] = useState(false);
+  const [modalRedefinirVisible, setModalRedefinirVisible] = useState(false);
+  const [emailRecuperacao, setEmailRecuperacao] = useState("");
+  const [token, setToken] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  
+  // Estado do Alerta Customizado
+  const [alertConfig, setAlertConfig] = useState({ visible: false, title: "", message: "" });
   
   // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -29,7 +51,6 @@ export default function Login() {
   const logoScale = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
-    // Animação de entrada
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -50,23 +71,130 @@ export default function Login() {
     ]).start();
   }, []);
 
-  function onClickButtonDisabled() {
-    Alert.alert("Atenção", "Informe o email e a senha para acessar.");
-  }
+  // --- FUNÇÃO AUXILIAR DE ALERTA ---
+  const showCustomAlert = (title: string, message: string) => {
+    setAlertConfig({ visible: true, title, message });
+  };
 
-  function onClickLogin() {
+  const closeCustomAlert = () => {
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
+
+  // --- VALIDAÇÕES EM LINHA ---
+  
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const isFormValid = isValidEmail(login) && password.length >= 8;
+
+  function handleValidationErrors() {
+    setEmailError("");
+    setPasswordError("");
+
     if (!login) {
-      Alert.alert("Erro", "Email inválido.");
-      return;
+      setEmailError("Informe o e-mail.");
+    } else if (!isValidEmail(login)) {
+      setEmailError("Formato de e-mail inválido (ex: seu@email.com).");
     }
-    if (login !== "teste" || password !== "123") {
-      Alert.alert("Erro", "Login ou senha incorretos.");
-      return;
+
+    if (!password) {
+      setPasswordError("Informe a senha.");
+    } else if (password.length < 8) {
+      setPasswordError("A senha deve conter no mínimo 8 dígitos.");
     }
-    router.navigate("/(tabs)");
   }
 
-  const isFormValid = login.trim() !== "" && password.trim() !== "";
+  // --- FUNÇÕES DE API ---
+
+  async function onClickLogin() {
+    if (!isFormValid) {
+      handleValidationErrors();
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: login, senha: password }),
+      });
+
+      const textResponse = await response.text();
+      const data = JSON.parse(textResponse);
+
+      if (!response.ok) {
+        throw new Error(data.message || "E-mail ou senha inválidos.");
+      }
+
+      const dadosUsuario = data.usuario ? data.usuario : data;
+      await AsyncStorage.setItem("dadosUsuario", JSON.stringify(dadosUsuario));
+      
+      if (data.token) {
+        await AsyncStorage.setItem("userToken", data.token);
+      }
+
+      router.replace("/(tabs)"); 
+
+    } catch (error: any) {
+      showCustomAlert("Erro ao entrar", error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handleEnviarToken = async () => {
+    if (!isValidEmail(emailRecuperacao)) {
+      showCustomAlert("Atenção", "Digite um formato de e-mail válido para receber o token.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/recuperar-senha`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailRecuperacao }),
+      });
+
+      if (!response.ok) throw new Error("Erro ao solicitar recuperação");
+
+      setModalRecuperacaoVisible(false);
+      showCustomAlert("E-mail enviado", "Verifique sua caixa de entrada para pegar o token.");
+      setModalRedefinirVisible(true);
+      
+    } catch (error) {
+      showCustomAlert("Erro", "Não foi possível processar sua solicitação.");
+    }
+  };
+
+  const handleRedefinirSenha = async () => {
+    if (!token) {
+      showCustomAlert("Atenção", "Preencha o token recebido no e-mail.");
+      return;
+    }
+    if (novaSenha.length < 8) {
+      showCustomAlert("Atenção", "A nova senha deve ter no mínimo 8 dígitos.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/redefinir-senha`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, novaSenha }),
+      });
+
+      if (!response.ok) throw new Error("Token inválido ou expirado.");
+
+      setModalRedefinirVisible(false);
+      showCustomAlert("Sucesso", "Senha redefinida com sucesso! Pode fazer o login.");
+      
+    } catch (error) {
+      showCustomAlert("Erro", "Não foi possível redefinir a senha.");
+    }
+  };
 
   return (
     <LinearGradient
@@ -108,7 +236,7 @@ export default function Login() {
             {/* Email Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, emailError ? styles.inputErrorBorder : null]}>
                 <Mail
                   color="#00E676"
                   size={20}
@@ -122,15 +250,19 @@ export default function Login() {
                   placeholderTextColor="#666"
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  onChangeText={setLogin}
+                  onChangeText={(text) => {
+                    setLogin(text);
+                    setEmailError(""); 
+                  }}
                 />
               </View>
+              {emailError ? <Text style={styles.inlineErrorText}>{emailError}</Text> : null}
             </View>
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Senha</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, passwordError ? styles.inputErrorBorder : null]}>
                 <Lock
                   color="#00E676"
                   size={20}
@@ -140,10 +272,13 @@ export default function Login() {
                 <TextInput
                   style={styles.input}
                   secureTextEntry={!showPassword}
-                  placeholder="••••••••"
+                  placeholder="Mínimo de 8 dígitos"
                   placeholderTextColor="#666"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    setPasswordError(""); 
+                  }}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -157,11 +292,12 @@ export default function Login() {
                   )}
                 </TouchableOpacity>
               </View>
+              {passwordError ? <Text style={styles.inlineErrorText}>{passwordError}</Text> : null}
             </View>
 
             {/* Esqueci Senha */}
             <TouchableOpacity
-              onPress={() => Alert.alert("Recuperação de senha")}
+              onPress={() => setModalRecuperacaoVisible(true)}
               activeOpacity={0.7}
             >
               <Text style={styles.linkEsqueci}>
@@ -175,6 +311,7 @@ export default function Login() {
                 style={styles.button}
                 onPress={onClickLogin}
                 activeOpacity={0.8}
+                disabled={isLoading}
               >
                 <LinearGradient
                   colors={["#00E676", "#00C853"]}
@@ -182,13 +319,13 @@ export default function Login() {
                   end={{ x: 1, y: 0 }}
                   style={styles.buttonGradient}
                 >
-                  <Text style={styles.buttonText}>Entrar</Text>
+                  <Text style={styles.buttonText}>{isLoading ? "Entrando..." : "Entrar"}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={styles.buttonDisabled}
-                onPress={onClickButtonDisabled}
+                onPress={handleValidationErrors}
                 activeOpacity={0.7}
               >
                 <Text style={styles.buttonTextDisabled}>Entrar</Text>
@@ -220,209 +357,201 @@ export default function Login() {
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Login Social (opcional) */}
+          {/* Login Social */}
           <View style={styles.socialContainer}>
             <TouchableOpacity
-              style={styles.socialButton}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.socialButtonText}>Google</Text>
-            </TouchableOpacity>
+  style={styles.socialButton}
+  activeOpacity={0.8}
+  onPress={() => {
+    // Endereço da sua API que inicia o fluxo do Passport Google
+    Linking.openURL(`${API_URL}/auth/google`);
+  }}
+>
+  <Text style={styles.socialButtonText}>Login com Google</Text>
+</TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {/* --- MODAIS DE RECUPERAÇÃO --- */}
+      
+      {/* Modal 1: Informar E-mail */}
+      <Modal visible={modalRecuperacaoVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.closeModalButton} 
+              onPress={() => setModalRecuperacaoVisible(false)}
+            >
+              <X color="#bafdbc" size={24} />
+            </TouchableOpacity>
+            
+            <Text style={styles.modalTitle}>Recuperar senha</Text>
+            <Text style={styles.modalSubtitle}>Digite seu e-mail para receber o token de segurança.</Text>
+            
+            <View style={styles.inputWrapperModal}>
+              <TextInput
+                style={styles.inputModal}
+                placeholder="seu@email.com"
+                placeholderTextColor="#666"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={emailRecuperacao}
+                onChangeText={setEmailRecuperacao}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.modalButton} onPress={handleEnviarToken}>
+              <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.buttonGradientModal}>
+                <Text style={styles.buttonText}>Enviar Token</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal 2: Inserir Token e Nova Senha */}
+      <Modal visible={modalRedefinirVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+             <TouchableOpacity 
+              style={styles.closeModalButton} 
+              onPress={() => setModalRedefinirVisible(false)}
+            >
+              <X color="#bafdbc" size={24} />
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>Redefinir senha</Text>
+            
+            <View style={styles.inputWrapperModal}>
+              <TextInput
+                style={styles.inputModal}
+                placeholder="Cole o token recebido"
+                placeholderTextColor="#666"
+                value={token}
+                onChangeText={setToken}
+              />
+            </View>
+
+            <View style={[styles.inputWrapperModal, { marginTop: 15 }]}>
+              <TextInput
+                style={styles.inputModal}
+                placeholder="Nova senha (mínimo 8 dígitos)"
+                placeholderTextColor="#666"
+                secureTextEntry
+                value={novaSenha}
+                onChangeText={setNovaSenha}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.modalButton} onPress={handleRedefinirSenha}>
+              <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.buttonGradientModal}>
+                <Text style={styles.buttonText}>Redefinir</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- ALERTA CUSTOMIZADO ESTILIZADO --- */}
+      <Modal visible={alertConfig.visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertBox}>
+            <AlertCircle color="#EF4444" size={40} style={{ marginBottom: 15 }} />
+            <Text style={styles.alertTitle}>{alertConfig.title}</Text>
+            <Text style={styles.alertMessage}>{alertConfig.message}</Text>
+            
+            <TouchableOpacity style={styles.alertButton} onPress={closeCustomAlert}>
+              <Text style={styles.alertButtonText}>OK, entendi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
+  gradient: { flex: 1 },
+  keyboardView: { flex: 1 },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 30, paddingVertical: 40 },
+  header: { alignItems: "center", marginBottom: 35 },
+  logo: { width: 200, height: 80, marginBottom: 15 },
+  saudacao: { color: "#00E676", fontSize: 24, fontWeight: "700", marginBottom: 5 },
+  subtitle: { color: "#bafdbc", fontSize: 14, fontWeight: "400" },
+  main: { width: "100%", backgroundColor: "rgba(255,255,255,0.08)", padding: 24, borderRadius: 20, borderWidth: 1, borderColor: "rgba(0, 230, 118, 0.2)" },
+  inputContainer: { marginBottom: 18 },
+  label: { fontWeight: "600", fontSize: 14, marginBottom: 8, color: "#bafdbc" },
+  inputWrapper: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.95)", borderRadius: 12, borderWidth: 2, borderColor: "transparent" },
+  inputIcon: { marginLeft: 14 },
+  input: { flex: 1, padding: 14, paddingLeft: 10, fontSize: 15, color: "#000" },
+  eyeIcon: { padding: 14 },
+  
+  // Erros em linha
+  inlineErrorText: { color: "#EF4444", fontSize: 12, marginTop: 6, marginLeft: 4, fontWeight: "500" },
+  inputErrorBorder: { borderColor: "#EF4444" },
 
-  keyboardView: {
-    flex: 1,
-  },
+  linkEsqueci: { color: "#00E676", textAlign: "right", marginTop: 4, marginBottom: 24, fontWeight: "600", fontSize: 13 },
+  button: { borderRadius: 12, overflow: "hidden", elevation: 4, shadowColor: "#00E676", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  buttonGradient: { paddingVertical: 16, alignItems: "center", justifyContent: "center" },
+  buttonText: { color: "#0D332D", fontSize: 17, fontWeight: "bold" },
+  buttonDisabled: { backgroundColor: "rgba(255,255,255,0.1)", paddingVertical: 16, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
+  buttonTextDisabled: { color: "#666", fontSize: 17, fontWeight: "bold" },
+  footer: { flexDirection: "row", marginTop: 30, alignItems: "center" },
+  footerText: { color: "#bafdbc", fontSize: 14 },
+  linkCriar: { color: "#00E676", fontWeight: "bold", fontSize: 14 },
+  divider: { flexDirection: "row", alignItems: "center", marginTop: 30, marginBottom: 20, width: "100%" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.2)" },
+  dividerText: { color: "#666", paddingHorizontal: 15, fontSize: 13 },
+  socialContainer: { flexDirection: "row", gap: 12, width: "100%" },
+  socialButton: { flex: 1, backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 14, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
+  socialButtonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(10, 31, 26, 0.8)", justifyContent: "center", alignItems: "center", padding: 20 },
+  modalContent: { width: "100%", backgroundColor: "rgba(15, 23, 42, 0.98)", borderRadius: 20, padding: 24, borderWidth: 1, borderColor: "rgba(0, 230, 118, 0.3)" },
+  closeModalButton: { alignSelf: "flex-end", padding: 5 },
+  modalTitle: { fontSize: 22, fontWeight: "bold", color: "#00E676", marginBottom: 8, textAlign: "center" },
+  modalSubtitle: { color: "#bafdbc", textAlign: "center", marginBottom: 20, fontSize: 14 },
+  inputWrapperModal: { backgroundColor: "rgba(255,255,255,0.95)", borderRadius: 12 },
+  inputModal: { padding: 14, fontSize: 15, color: "#000" },
+  modalButton: { borderRadius: 12, overflow: "hidden", marginTop: 20 },
+  buttonGradientModal: { paddingVertical: 14, alignItems: "center", justifyContent: "center" },
 
-  container: {
-    flex: 1,
-    justifyContent: "center",
+  // --- ESTILOS DO ALERTA CUSTOMIZADO ---
+  alertBox: { 
+    width: "85%", 
+    backgroundColor: "rgba(15, 23, 42, 0.98)", 
+    borderRadius: 20, 
+    padding: 25, 
     alignItems: "center",
-    paddingHorizontal: 30,
-    paddingVertical: 40,
+    borderWidth: 1, 
+    borderColor: "rgba(239, 68, 68, 0.3)" // Borda levemente vermelha para erro
   },
-
-  header: {
-    alignItems: "center",
-    marginBottom: 35,
+  alertTitle: { 
+    fontSize: 20, 
+    fontWeight: "bold", 
+    color: "#fff", 
+    marginBottom: 10, 
+    textAlign: "center" 
   },
-
-  logo: {
-    width: 200,
-    height: 80,
-    marginBottom: 15,
+  alertMessage: { 
+    fontSize: 15, 
+    color: "#bafdbc", 
+    textAlign: "center", 
+    marginBottom: 25,
+    lineHeight: 20
   },
-
-  saudacao: {
-    color: "#00E676",
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 5,
-  },
-
-  subtitle: {
-    color: "#bafdbc",
-    fontSize: 14,
-    fontWeight: "400",
-  },
-
-  main: {
-    width: "100%",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    padding: 24,
-    borderRadius: 20,
+  alertButton: { 
+    backgroundColor: "rgba(255,255,255,0.1)", 
+    paddingVertical: 12, 
+    paddingHorizontal: 30, 
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(0, 230, 118, 0.2)",
+    borderColor: "rgba(255,255,255,0.2)"
   },
-
-  inputContainer: {
-    marginBottom: 18,
-  },
-
-  label: {
-    fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 8,
-    color: "#bafdbc",
-  },
-
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "transparent",
-  },
-
-  inputIcon: {
-    marginLeft: 14,
-  },
-
-  input: {
-    flex: 1,
-    padding: 14,
-    paddingLeft: 10,
-    fontSize: 15,
-    color: "#000",
-  },
-
-  eyeIcon: {
-    padding: 14,
-  },
-
-  linkEsqueci: {
-    color: "#00E676",
-    textAlign: "right",
-    marginTop: 4,
-    marginBottom: 24,
-    fontWeight: "600",
-    fontSize: 13,
-  },
-
-  button: {
-    borderRadius: 12,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#00E676",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-
-  buttonGradient: {
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  buttonText: {
-    color: "#0D332D",
-    fontSize: 17,
-    fontWeight: "bold",
-  },
-
-  buttonDisabled: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-
-  buttonTextDisabled: {
-    color: "#666",
-    fontSize: 17,
-    fontWeight: "bold",
-  },
-
-  footer: {
-    flexDirection: "row",
-    marginTop: 30,
-    alignItems: "center",
-  },
-
-  footerText: {
-    color: "#bafdbc",
-    fontSize: 14,
-  },
-
-  linkCriar: {
-    color: "#00E676",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 30,
-    marginBottom: 20,
-    width: "100%",
-  },
-
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-  },
-
-  dividerText: {
-    color: "#666",
-    paddingHorizontal: 15,
-    fontSize: 13,
-  },
-
-  socialContainer: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-  },
-
-  socialButton: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-
-  socialButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  alertButtonText: { 
+    color: "#fff", 
+    fontWeight: "bold", 
+    fontSize: 16 
+  }
 });

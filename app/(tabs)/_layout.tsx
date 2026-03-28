@@ -145,6 +145,13 @@ export default function TabLayout() {
         />
 
         <Tabs.Screen
+          name="reserva"
+          options={{
+            href: null,
+          }}
+        />
+
+        <Tabs.Screen
           name="historicoCardapio"
           options={{
             href: null,
