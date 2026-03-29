@@ -2,14 +2,36 @@ const { banco: pool } = require('./database');
 
 async function criarAgendamento(agendamento) {
   const { usuario_id, consultorio_id, servico_id, data, hora, preco } = agendamento;
-  const sql = `
-    INSERT INTO agendamentos (usuario_id, consultorio_id, servico_id, data, hora, preco)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-  const [result] = await pool.execute(sql, [usuario_id, consultorio_id, servico_id, data, hora, preco]);
-  return result.insertId;
-}
 
+  // 1. Log para saber exatamente o que vai para o SQL
+  console.log("Executando query no Banco com os dados:", [usuario_id, consultorio_id, servico_id, data, hora, preco]);
+
+  // 2. Query simplificada. 
+  // IMPORTANTE: Verifique se sua tabela tem a coluna 'status'. 
+  // Se NÃO tiver, remova o 'status' e o 'confirmado' abaixo.
+  const sql = `
+    INSERT INTO agendamentos (usuario_id, consultorio_id, servico_id, data, hora, preco, status)
+    VALUES (?, ?, ?, ?, ?, ?, 'confirmado')
+  `;
+
+  try {
+    const [result] = await pool.execute(sql, [
+      usuario_id, 
+      consultorio_id, 
+      servico_id, 
+      data, 
+      hora, 
+      preco
+    ]);
+    
+    console.log("Resultado do Banco:", result);
+    return result.insertId;
+  } catch (error) {
+    // ESTE LOG É O MAIS IMPORTANTE: Ele vai dizer se a coluna não existe ou se o nome está errado
+    console.error("❌ ERRO FATAL NO MYSQL:", error.message);
+    throw error; 
+  }
+}
 
 async function listarAgendamentos() {
   const sql = `

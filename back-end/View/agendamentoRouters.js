@@ -5,18 +5,20 @@ const agendamentoModel = require('../Model/agendamentoService');
 
 router.post('/', async (req, res) => {
   try {
-    const { usuario_id, consultorio_id, servico_id, data, hora, preco } = req.body;
+    console.log("Corpo recebido na API:", req.body);
+    
+    // Chama o Service que agora sabemos que está funcionando
+    const insertId = await agendamentoModel.criarAgendamento(req.body);
+    
+    // IMPORTANTE: O res.status(201).json é o que avisa o celular para fechar o modal
+    return res.status(201).json({ 
+      id: insertId, 
+      message: "Agendamento criado com sucesso!" 
+    });
 
-    if (!usuario_id || !consultorio_id || !servico_id || !data || !hora || !preco) {
-      return res.status(400).json({ error: "Todos os campos são obrigatórios" });
-    }
-
-    const id = await agendamentoModel.criarAgendamento({ usuario_id, consultorio_id, servico_id, data, hora, preco });
-
-    res.status(201).json({ id, message: "Agendamento criado com sucesso!" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.error("Erro na rota POST /agendamentos:", error);
+    return res.status(500).json({ error: error.message });
   }
 });
 

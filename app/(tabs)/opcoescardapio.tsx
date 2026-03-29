@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { Plus, History, ArrowRight, Sparkles, Utensils } from "lucide-react-native";
+import { Plus, History, ArrowRight, Sparkles, Utensils, ChevronLeft } from "lucide-react-native";
 
 const perfilIcon = require("@/assets/images/perfilicon.png");
 const logoApp = require("@/assets/images/logo.png");
@@ -43,9 +43,10 @@ export default function CardapioHome() {
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>←</Text>
+        <TouchableOpacity onPress={() => router.replace("/(tabs)")} style={styles.backButton}>
+          <ChevronLeft color="#00E676" size={32} />
         </TouchableOpacity>
+        
         <View style={styles.headerCenter}>
           <Image source={logoApp} style={styles.logo} resizeMode="contain" />
           <Text style={styles.headerTitle}>Cardápio</Text>
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     backgroundColor: "rgba(10, 31, 26, 0.95)",
   },
-  backButton: { color: "#00E676", fontSize: 32, fontWeight: "300" },
+  backButton: { padding: 5, marginLeft: -5 },
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 10 },
   logo: { width: 30, height: 30 },
   headerTitle: { color: "#fff", fontSize: 18, fontWeight: "600" },

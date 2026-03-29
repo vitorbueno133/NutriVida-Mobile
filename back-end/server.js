@@ -89,4 +89,7 @@ app.use('/cardapio', criarCardapioRotas);
 app.use('/salvarCardapio', salvarCardapioRouters);
 app.use('/respostas', salvarRespostasRouters);
 
+app.use('/agendamentos', rotasAgendamentos);
+app.use('/consultorios', rotasConsultorios);
+
 app.listen(3000, () => console.log("API rodando na porta 3000"));
