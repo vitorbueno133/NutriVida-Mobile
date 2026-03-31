@@ -19,13 +19,27 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  Coffee,
+  Activity,
+  Flame,
+  Zap,
+  ChefHat,
+  Archive,
+  Briefcase,
+  Calendar,
+  Dumbbell,
+  Pencil,
+  Heart,
+  Ban,
+  ClipboardList,
+  Sparkles,
+  XCircle
 } from "lucide-react-native";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function mostrarLoading(setLoading: (v: boolean) => void) { setLoading(true); }
 function esconderLoading(setLoading: (v: boolean) => void) { setLoading(false); }
 
-// Faz fetch e retorna JSON com segurança — evita crash se a API retornar HTML
 async function safeFetch(url: string, options: RequestInit) {
   const resp = await fetch(url, options);
   const text = await resp.text();
@@ -46,8 +60,8 @@ export default function CardapioForm() {
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-// 🔥 ADICIONE ESTE STATE JUNTO COM OS OUTROS
-const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
+  
+  const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nome: "",
     idade: "",
@@ -98,16 +112,13 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
 
   // ── submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    // ✅ Sem AsyncStorage — usuario_id é null para usuários não logados
-    // O backend foi atualizado para aceitar usuario_id nulo
-
     if (!formData.nome.trim())            return showToast("Preencha o Nome completo.", "erro");
     const idade = parseInt(formData.idade, 10);
     if (isNaN(idade) || idade <= 0)       return showToast("Insira uma idade válida.", "erro");
     const imc = parseFloat(formData.imc.replace(",", "."));
     if (isNaN(imc) || imc <= 0)           return showToast("Insira um IMC válido.", "erro");
     const altura = parseFloat(formData.altura.replace(",", "."));
-    if (isNaN(altura) || altura < 0.5)   return showToast("Insira uma altura válida (ex: 1.75).", "erro");
+    if (isNaN(altura) || altura < 0.5)    return showToast("Insira uma altura válida (ex: 1.75).", "erro");
     const peso = parseFloat(formData.peso);
     if (isNaN(peso) || peso <= 0)         return showToast("Insira um peso válido.", "erro");
     if (!formData.sexo)                   return showToast("Selecione o Sexo.", "erro");
@@ -138,7 +149,7 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
     else objetivoFinal = formData.objetivoOutros;
 
     const dados = {
-      usuario_id: null, // sem login obrigatório
+      usuario_id: null,
       name: formData.nome,
       age: idade,
       imc,
@@ -159,7 +170,6 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
     mostrarLoading(setLoading);
 
     try {
-      // 1. Salvar respostas
       const { ok: ok1, data: respostaBackend } = await safeFetch(
         "http://192.168.14.207:3000/respostas",
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) }
@@ -171,7 +181,6 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
       }
       const respostas_id = respostaBackend.respostas_id;
 
-      // 2. Gerar cardápio
       const { ok: ok2, data: result } = await safeFetch(
         `http://192.168.14.207:3000/cardapio/CardapioCriado?timestamp=${Date.now()}`,
         { method: "POST", headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" }, body: JSON.stringify(dados) }
@@ -184,11 +193,10 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
 
       const hash_respostas = CryptoJS.SHA256(JSON.stringify(dados)).toString();
       const cardapioParaSalvar =
-  typeof result.data === "string"
-    ? result.data
-    : JSON.stringify(result.data, null, 2);
+        typeof result.data === "string"
+          ? result.data
+          : JSON.stringify(result.data, null, 2);
 
-      // 3. Salvar cardápio (silencioso se falhar)
       await safeFetch("http://192.168.14.207:3000/salvarCardapio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -213,27 +221,32 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
   };
 
   // ── UI helpers ────────────────────────────────────────────────────────────
-  const Chip = ({ label, emoji, selected, onPress, subtitle }: {
-    label: string; emoji?: string; selected: boolean; onPress: () => void; subtitle?: string
+  const Chip = ({ label, IconComponent, selected, onPress, subtitle }: {
+    label: string; IconComponent?: any; selected: boolean; onPress: () => void; subtitle?: string
   }) => (
     <TouchableOpacity style={[styles.chip, selected && styles.chipSelected]} onPress={onPress} activeOpacity={0.75}>
-      {emoji ? <Text style={styles.chipEmoji}>{emoji}</Text> : null}
+      {IconComponent ? <IconComponent size={16} color={selected ? "#00E676" : "rgba(186,253,188,0.7)"} /> : null}
       <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
       {subtitle ? <Text style={styles.chipSub}>{subtitle}</Text> : null}
     </TouchableOpacity>
   );
 
-  const RadioPair = ({ label, valueTrue, valueFalse, current, onChange }: {
-    label: string; valueTrue: string; valueFalse: string; current: boolean | null; onChange: (v: boolean) => void
+  const RadioPair = ({ label, valueTrue, valueFalse, current, onChange, IconLabel }: {
+    label: string; valueTrue: string; valueFalse: string; current: boolean | null; onChange: (v: boolean) => void; IconLabel?: any
   }) => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelWithIcon}>
+        {IconLabel && <IconLabel size={18} color="#fff" />}
+        <Text style={[styles.label, { marginBottom: 0 }]}>{label}</Text>
+      </View>
       <View style={styles.radioGroup}>
         <TouchableOpacity style={[styles.radioButton, current === true && styles.radioSelected]} onPress={() => onChange(true)} activeOpacity={0.75}>
-          <Text style={styles.radioEmoji}>✅</Text><Text style={styles.radioLabel}>{valueTrue}</Text>
+          <CheckCircle2 color={current === true ? "#00E676" : "#94a3b8"} size={20} />
+          <Text style={styles.radioLabel}>{valueTrue}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.radioButton, current === false && styles.radioSelected]} onPress={() => onChange(false)} activeOpacity={0.75}>
-          <Text style={styles.radioEmoji}>❌</Text><Text style={styles.radioLabel}>{valueFalse}</Text>
+          <XCircle color={current === false ? "#EF4444" : "#94a3b8"} size={20} />
+          <Text style={styles.radioLabel}>{valueFalse}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -245,6 +258,7 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
     { title: "Objetivos",      desc: "O que você busca alcançar?",   Icon: Target },
     { title: "Restrições",     desc: "Algo que devemos considerar?", Icon: Utensils },
   ];
+  
   const { title, desc } = stepMeta[step - 1];
   const animatedStyle = { opacity: fadeAnim, transform: [{ translateX: slideAnim }] };
 
@@ -281,10 +295,12 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
             <Text style={styles.label}>Sexo</Text>
             <View style={styles.radioGroup}>
               <TouchableOpacity style={[styles.radioButton, formData.sexo === "masculino" && styles.radioSelected]} onPress={() => setFormData(f => ({ ...f, sexo: "masculino" }))} activeOpacity={0.75}>
-                <Text style={styles.radioEmoji}>👨</Text><Text style={styles.radioLabel}>Masculino</Text>
+                <User color={formData.sexo === "masculino" ? "#00E676" : "#94a3b8"} size={20} />
+                <Text style={styles.radioLabel}>Masculino</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.radioButton, formData.sexo === "feminino" && styles.radioSelected]} onPress={() => setFormData(f => ({ ...f, sexo: "feminino" }))} activeOpacity={0.75}>
-                <Text style={styles.radioEmoji}>👩</Text><Text style={styles.radioLabel}>Feminino</Text>
+                <User color={formData.sexo === "feminino" ? "#00E676" : "#94a3b8"} size={20} />
+                <Text style={styles.radioLabel}>Feminino</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -294,27 +310,49 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
         <Animated.View style={[styles.stepContent, animatedStyle]}>
           <SectionTitle title="Estilo de Vida" />
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>⚡ Nível de Atividade Física</Text>
+            <View style={styles.labelWithIcon}>
+              <Activity size={18} color="#fff" />
+              <Text style={[styles.label, { marginBottom: 0 }]}>Nível de Atividade Física</Text>
+            </View>
             <View style={styles.chipGroup}>
-              {[{ label: "Sedentário", emoji: "🛋️", value: "sedentario" }, { label: "Leve", emoji: "🚶", value: "leve" }, { label: "Moderado", emoji: "🏃", value: "moderado" }, { label: "Intenso", emoji: "🔥", value: "intenso" }].map(o => (
-                <Chip key={o.value} label={o.label} emoji={o.emoji} selected={formData.nivelAtividade === o.value} onPress={() => setFormData(f => ({ ...f, nivelAtividade: o.value }))} />
+              {[
+                { label: "Sedentário", icon: Coffee, value: "sedentario" }, 
+                { label: "Leve", icon: Activity, value: "leve" }, 
+                { label: "Moderado", icon: Dumbbell, value: "moderado" }, 
+                { label: "Intenso", icon: Flame, value: "intenso" }
+              ].map(o => (
+                <Chip key={o.value} label={o.label} IconComponent={o.icon} selected={formData.nivelAtividade === o.value} onPress={() => setFormData(f => ({ ...f, nivelAtividade: o.value }))} />
               ))}
             </View>
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>⏱️ Tempo disponível para preparar refeições</Text>
+            <View style={styles.labelWithIcon}>
+              <Clock size={18} color="#fff" />
+              <Text style={[styles.label, { marginBottom: 0 }]}>Tempo para preparar refeições</Text>
+            </View>
             <View style={styles.chipGroup}>
-              {[{ label: "Pouco tempo", emoji: "⚡", value: "pouco", sub: "refeições rápidas" }, { label: "Tempo médio", emoji: "⏱️", value: "medio", sub: "preparo simples" }, { label: "Muito tempo", emoji: "👨‍🍳", value: "muito", sub: "pratos elaborados" }, { label: "Uso marmita", emoji: "🥡", value: "usa_marmita", sub: "pronta" }].map(o => (
-                <Chip key={o.value} label={o.label} emoji={o.emoji} subtitle={o.sub} selected={formData.tempoPreparo === o.value} onPress={() => setFormData(f => ({ ...f, tempoPreparo: o.value }))} />
+              {[
+                { label: "Pouco tempo", icon: Zap, value: "pouco", sub: "refeições rápidas" }, 
+                { label: "Tempo médio", icon: Clock, value: "medio", sub: "preparo simples" }, 
+                { label: "Muito tempo", icon: ChefHat, value: "muito", sub: "pratos elaborados" }, 
+                { label: "Uso marmita", icon: Archive, value: "usa_marmita", sub: "pronta" }
+              ].map(o => (
+                <Chip key={o.value} label={o.label} IconComponent={o.icon} subtitle={o.sub} selected={formData.tempoPreparo === o.value} onPress={() => setFormData(f => ({ ...f, tempoPreparo: o.value }))} />
               ))}
             </View>
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>💼 Com o que você trabalha?</Text>
+            <View style={styles.labelWithIcon}>
+              <Briefcase size={18} color="#fff" />
+              <Text style={[styles.label, { marginBottom: 0 }]}>Com o que você trabalha?</Text>
+            </View>
             <TextInput style={styles.input} placeholder="Ex: vendedor, professor" placeholderTextColor="rgba(186,253,188,0.4)" value={formData.trabalho} onChangeText={v => setFormData(f => ({ ...f, trabalho: v }))} />
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>📅 Descreva sua rotina diária</Text>
+            <View style={styles.labelWithIcon}>
+              <Calendar size={18} color="#fff" />
+              <Text style={[styles.label, { marginBottom: 0 }]}>Descreva sua rotina diária</Text>
+            </View>
             <TextInput style={[styles.input, styles.textArea]} placeholder="Horários de trabalho, treino, sono..." placeholderTextColor="rgba(186,253,188,0.4)" multiline numberOfLines={4} value={formData.rotina} onChangeText={v => setFormData(f => ({ ...f, rotina: v }))} />
           </View>
         </Animated.View>
@@ -323,27 +361,43 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
         <Animated.View style={[styles.stepContent, animatedStyle]}>
           <SectionTitle title="Objetivos" />
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>🎯 Qual seu objetivo principal?</Text>
+            <View style={styles.labelWithIcon}>
+              <Target size={18} color="#fff" />
+              <Text style={[styles.label, { marginBottom: 0 }]}>Qual seu objetivo principal?</Text>
+            </View>
             <View style={styles.chipGroup}>
-              {[{ label: "Ganhar peso", emoji: "💪", value: "ganhar_peso" }, { label: "Perder peso", emoji: "🔥", value: "perder_peso" }, { label: "Outros", emoji: "✏️", value: "outros" }].map(o => (
-                <Chip key={o.value} label={o.label} emoji={o.emoji} selected={formData.objetivo === o.value} onPress={() => setFormData(f => ({ ...f, objetivo: o.value as any }))} />
+              {[
+                { label: "Ganhar peso", icon: Dumbbell, value: "ganhar_peso" }, 
+                { label: "Perder peso", icon: Flame, value: "perder_peso" }, 
+                { label: "Outros", icon: Pencil, value: "outros" }
+              ].map(o => (
+                <Chip key={o.value} label={o.label} IconComponent={o.icon} selected={formData.objetivo === o.value} onPress={() => setFormData(f => ({ ...f, objetivo: o.value as any }))} />
               ))}
             </View>
           </View>
           {formData.objetivo === "outros" && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>✏️ Descreva seu objetivo</Text>
+              <View style={styles.labelWithIcon}>
+                <Pencil size={18} color="#fff" />
+                <Text style={[styles.label, { marginBottom: 0 }]}>Descreva seu objetivo</Text>
+              </View>
               <TextInput style={styles.input} placeholder="Descreva seu objetivo..." placeholderTextColor="rgba(186,253,188,0.4)" value={formData.objetivoOutros} onChangeText={v => setFormData(f => ({ ...f, objetivoOutros: v }))} />
             </View>
           )}
-          <RadioPair label="🏃 Você pratica algum esporte?" valueTrue="Sim" valueFalse="Não" current={formData.praticaEsporte} onChange={v => setFormData(f => ({ ...f, praticaEsporte: v, esporte: v ? f.esporte : "" }))} />
+          
+          <RadioPair label="Você pratica algum esporte?" IconLabel={Activity} valueTrue="Sim" valueFalse="Não" current={formData.praticaEsporte} onChange={v => setFormData(f => ({ ...f, praticaEsporte: v, esporte: v ? f.esporte : "" }))} />
+          
           {formData.praticaEsporte && (
             <View style={styles.conditionalCard}>
               <TextInput style={styles.input} placeholder="Qual esporte?" placeholderTextColor="rgba(186,253,188,0.4)" value={formData.esporte} onChangeText={v => setFormData(f => ({ ...f, esporte: v }))} />
             </View>
           )}
+          
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>😋 Alimentos que você não tiraria da dieta (máx. 3)</Text>
+            <View style={styles.labelWithIcon}>
+              <Heart size={18} color="#fff" />
+              <Text style={[styles.label, { marginBottom: 0 }]}>Alimentos que não tiraria da dieta (máx. 3)</Text>
+            </View>
             <TextInput style={styles.input} placeholder="Ex: chocolate, pizza, sorvete" placeholderTextColor="rgba(186,253,188,0.4)" value={formData.alimentosFavoritos} onChangeText={v => setFormData(f => ({ ...f, alimentosFavoritos: v }))} />
             <Text style={styles.hint}>Separe por vírgula. Vamos tentar encaixar no plano!</Text>
           </View>
@@ -352,20 +406,28 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
       case 4: return (
         <Animated.View style={[styles.stepContent, animatedStyle]}>
           <SectionTitle title="Restrições" />
-          <RadioPair label="🚫 Possui alguma alergia alimentar?" valueTrue="Sim" valueFalse="Não" current={formData.temAlergia} onChange={v => setFormData(f => ({ ...f, temAlergia: v, alergias: v ? f.alergias : "" }))} />
+          
+          <RadioPair label="Possui alguma alergia alimentar?" IconLabel={Ban} valueTrue="Sim" valueFalse="Não" current={formData.temAlergia} onChange={v => setFormData(f => ({ ...f, temAlergia: v, alergias: v ? f.alergias : "" }))} />
+          
           {formData.temAlergia && (
             <View style={styles.conditionalCard}>
               <TextInput style={[styles.input, styles.textArea]} placeholder="Descreva suas alergias..." placeholderTextColor="rgba(186,253,188,0.4)" multiline numberOfLines={3} value={formData.alergias} onChangeText={v => setFormData(f => ({ ...f, alergias: v }))} />
             </View>
           )}
-          <RadioPair label="🥗 Está seguindo alguma dieta específica?" valueTrue="Sim" valueFalse="Não" current={formData.segueDieta} onChange={v => setFormData(f => ({ ...f, segueDieta: v, dieta: v ? f.dieta : "" }))} />
+          
+          <RadioPair label="Está seguindo alguma dieta específica?" IconLabel={Utensils} valueTrue="Sim" valueFalse="Não" current={formData.segueDieta} onChange={v => setFormData(f => ({ ...f, segueDieta: v, dieta: v ? f.dieta : "" }))} />
+          
           {formData.segueDieta && (
             <View style={styles.conditionalCard}>
               <TextInput style={styles.input} placeholder="Qual dieta você segue?" placeholderTextColor="rgba(186,253,188,0.4)" value={formData.dieta} onChangeText={v => setFormData(f => ({ ...f, dieta: v }))} />
             </View>
           )}
+          
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>📋 Resumo do seu perfil</Text>
+            <View style={styles.summaryHeaderRow}>
+              <ClipboardList size={20} color="#00E676" />
+              <Text style={styles.summaryTitle}>Resumo do seu perfil</Text>
+            </View>
             {[
               ["Nome",      formData.nome],
               ["Idade",     formData.idade   ? `${formData.idade} anos` : ""],
@@ -388,47 +450,29 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
   };
 
   if (cardapioGerado) {
-  return (
-    <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={{ flex: 1 }}>
-      <ScrollView style={{ flex: 1, padding: 20 }}>
-        <Text style={{
-          color: "#00E676",
-          fontSize: 22,
-          fontWeight: "bold",
-          marginBottom: 20
-        }}>
-          🥗 Seu Cardápio Personalizado
-        </Text>
+    return (
+      <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={{ flex: 1 }}>
+        <ScrollView style={{ flex: 1, padding: 20 }}>
+          
+          <View style={styles.resultHeader}>
+            <Utensils color="#00E676" size={26} />
+            <Text style={styles.resultTitle}>Seu Cardápio Personalizado</Text>
+          </View>
 
-        <Text style={{
-          color: "#fff",
-          fontSize: 15,
-          lineHeight: 24
-        }}>
-          {cardapioGerado}
-        </Text>
-
-        <TouchableOpacity
-          style={{
-            marginTop: 30,
-            backgroundColor: "#00E676",
-            padding: 15,
-            borderRadius: 12
-          }}
-          onPress={() => setCardapioGerado(null)}
-        >
-          <Text style={{
-            textAlign: "center",
-            fontWeight: "bold",
-            color: "#0a1f1a"
-          }}>
-            Gerar outro cardápio
+          <Text style={styles.resultText}>
+            {cardapioGerado}
           </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </LinearGradient>
-  );
-}
+
+          <TouchableOpacity
+            style={styles.resultBtn}
+            onPress={() => setCardapioGerado(null)}
+          >
+            <Text style={styles.resultBtnText}>Gerar outro cardápio</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>
@@ -466,25 +510,28 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
         <Text style={styles.stepDesc}>{desc}</Text>
       </View>
 
+      {/* --- MOVIDO: navContainer está agora dentro do ScrollView --- */}
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {renderStep()}
-      </ScrollView>
 
-      <View style={styles.navContainer}>
-        {step < totalSteps ? (
-          <TouchableOpacity style={styles.nextBtn} onPress={nextStep} activeOpacity={0.85}>
-            <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btnGradient}>
-              <Text style={styles.nextBtnText}>Próximo →</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={[styles.nextBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} activeOpacity={0.85} disabled={loading}>
-            <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btnGradient}>
-              <Text style={styles.nextBtnText}>{loading ? "Gerando..." : "✨ Gerar Meu Cardápio"}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-      </View>
+        <View style={styles.navContainer}>
+          {step < totalSteps ? (
+            <TouchableOpacity style={styles.nextBtn} onPress={nextStep} activeOpacity={0.85}>
+              <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btnGradient}>
+                <Text style={styles.nextBtnText}>Próximo →</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[styles.nextBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} activeOpacity={0.85} disabled={loading}>
+              <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.btnGradientRow}>
+                <Sparkles color="#0D332D" size={20} />
+                <Text style={styles.nextBtnText}>{loading ? "Gerando..." : "Gerar Meu Cardápio"}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+
+      </ScrollView>
 
       {toast && (
         <View style={[styles.toast, toast.tipo === "sucesso" ? styles.toastSucesso : styles.toastErro]}>
@@ -496,7 +543,7 @@ const [cardapioGerado, setCardapioGerado] = useState<string | null>(null);
       {loading && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
-            <Text style={styles.loadingEmoji}>🥗</Text>
+            <ChefHat color="#00E676" size={48} style={{ marginBottom: 16 }} />
             <Text style={styles.loadingTitle}>Gerando seu cardápio...</Text>
             <Text style={styles.loadingSubtitle}>Isso pode levar alguns segundos</Text>
             <View style={styles.loadingDots}>
@@ -544,44 +591,73 @@ const styles = StyleSheet.create({
   sectionTitle: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 22 },
   sectionDivider: { flex: 1, height: 1, backgroundColor: "rgba(0,230,118,0.2)" },
   sectionTitleText: { color: "#00E676", fontSize: 13, fontWeight: "700", letterSpacing: 1 },
+  
   inputGroup: { marginBottom: 20 },
   label: { color: "#fff", fontSize: 14, fontWeight: "600", marginBottom: 10 },
+  labelWithIcon: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  
   input: { backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1.5, borderColor: "rgba(0,230,118,0.2)", borderRadius: 12, padding: 14, fontSize: 15, color: "#fff" },
   textArea: { height: 100, textAlignVertical: "top" },
   hint: { fontSize: 11, color: "rgba(186,253,188,0.55)", marginTop: 5, fontStyle: "italic" },
   row: { flexDirection: "row", gap: 14 },
   halfWidth: { flex: 1 },
+  
   radioGroup: { flexDirection: "row", gap: 12 },
   radioButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, borderWidth: 2, borderColor: "rgba(255,255,255,0.1)", gap: 8 },
   radioSelected: { backgroundColor: "rgba(0,230,118,0.13)", borderColor: "#00E676" },
-  radioEmoji: { fontSize: 18 },
   radioLabel: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  
   chipGroup: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   chip: { flexDirection: "row", alignItems: "center", backgroundColor: "rgba(255,255,255,0.05)", paddingVertical: 11, paddingHorizontal: 16, borderRadius: 20, borderWidth: 2, borderColor: "rgba(255,255,255,0.1)", gap: 6 },
   chipSelected: { backgroundColor: "rgba(0,230,118,0.15)", borderColor: "#00E676" },
-  chipEmoji: { fontSize: 16 },
   chipText: { color: "#bafdbc", fontSize: 13, fontWeight: "500" },
   chipTextSelected: { color: "#00E676", fontWeight: "700" },
   chipSub: { fontSize: 10, color: "rgba(186,253,188,0.45)", marginTop: 1 },
+  
   conditionalCard: { backgroundColor: "rgba(0,230,118,0.05)", borderLeftWidth: 3, borderLeftColor: "#00E676", borderRadius: 10, padding: 12, marginTop: -8, marginBottom: 20 },
+  
   summaryCard: { backgroundColor: "rgba(0,230,118,0.08)", borderRadius: 16, padding: 20, borderWidth: 1.5, borderColor: "rgba(0,230,118,0.25)", marginTop: 8 },
-  summaryTitle: { color: "#00E676", fontSize: 15, fontWeight: "800", marginBottom: 14 },
+  summaryHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+  summaryTitle: { color: "#00E676", fontSize: 15, fontWeight: "800" },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
   summaryLabel: { color: "#bafdbc", fontSize: 13 },
   summaryValue: { color: "#fff", fontSize: 13, fontWeight: "600", maxWidth: "60%", textAlign: "right" },
-  navContainer: { paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 32, backgroundColor: "rgba(10,31,26,0.97)", borderTopWidth: 1, borderTopColor: "rgba(0,230,118,0.12)" },
-  nextBtn: { borderRadius: 25, overflow: "hidden", elevation: 10, shadowColor: "#00E676", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, margin: 31 },
+  
+  // --- ATUALIZADO: navContainer limpo para ficar dentro do scroll ---
+  navContainer: { 
+    paddingHorizontal: 20, 
+    paddingTop: 10, 
+    paddingBottom: 40 // Espaço extra para não sumir atrás da tab bar
+  },
+  nextBtn: { 
+    borderRadius: 25, 
+    overflow: "hidden", 
+    elevation: 10, 
+    shadowColor: "#00E676", 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.35, 
+    shadowRadius: 10, 
+    marginTop: 20 
+  },
   btnGradient: { paddingVertical: 16, alignItems: "center" },
+  btnGradientRow: { flexDirection: "row", paddingVertical: 16, alignItems: "center", justifyContent: "center", gap: 8 },
   nextBtnText: { color: "#0D332D", fontSize: 17, fontWeight: "800" },
+  
   toast: { position: "absolute", top: 60, left: 20, right: 20, flexDirection: "row", alignItems: "center", gap: 10, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 14, elevation: 20 },
   toastSucesso: { backgroundColor: "#059669" },
   toastErro: { backgroundColor: "#dc2626" },
   toastText: { color: "#fff", fontSize: 14, fontWeight: "600", flex: 1 },
+  
   loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center" },
   loadingCard: { backgroundColor: "#0f2d1e", borderRadius: 24, padding: 36, alignItems: "center", borderWidth: 1.5, borderColor: "rgba(0,230,118,0.3)", width: 260 },
-  loadingEmoji: { fontSize: 40, marginBottom: 16 },
   loadingTitle: { color: "#fff", fontSize: 17, fontWeight: "700", marginBottom: 8 },
   loadingSubtitle: { color: "#bafdbc", fontSize: 13, textAlign: "center", marginBottom: 20 },
   loadingDots: { flexDirection: "row", gap: 8 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#00E676", opacity: 0.7 },
+
+  resultHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20, marginTop: 40 },
+  resultTitle: { color: "#00E676", fontSize: 22, fontWeight: "bold" },
+  resultText: { color: "#fff", fontSize: 15, lineHeight: 24 },
+  resultBtn: { marginTop: 30, backgroundColor: "#00E676", padding: 15, borderRadius: 12, marginBottom: 50 },
+  resultBtnText: { textAlign: "center", fontWeight: "bold", color: "#0a1f1a", fontSize: 16 }
 });

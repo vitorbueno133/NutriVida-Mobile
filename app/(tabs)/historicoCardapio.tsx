@@ -47,9 +47,9 @@ export default function TabOneScreen() {
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-          <ChevronLeft color="#00E676" size={26} strokeWidth={2.5} />
-        </TouchableOpacity>
+       <TouchableOpacity onPress={() => router.replace("/(tabs)/opcoescardapio")} style={styles.backButton}>
+                 <ChevronLeft color="#00E676" size={32} />
+               </TouchableOpacity>
 
         <View style={styles.headerCenter}>
           <View style={styles.headerTitleRow}>

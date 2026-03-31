@@ -34,7 +34,7 @@ const imgConsultorio = require("@/assets/images/imgReserva.png");
 const imgMap = require("@/assets/images/Lugar que fica consultorio.jpg");
 
 // IMPORTANTE: Ajuste para o IP da sua API
-const API_URL = 'http://192.168.3.243:3000';
+const API_URL = 'http://192.168.14.207:3000';
 
 export default function DetalhesReserva() {
   const router = useRouter();
@@ -299,7 +299,7 @@ export default function DetalhesReserva() {
       
       {/* Cabeçalho Voltar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace("/(tabs)")} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.replace("/(tabs)/Agendamento")} style={styles.backButton}>
           <ChevronLeft color="#00E676" size={32} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Fazer Reserva</Text>

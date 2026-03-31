@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -12,7 +12,8 @@ import {
   TextInput,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   Scale, 
   Sparkles, 
@@ -37,12 +38,16 @@ export default function Home() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedReminder, setSelectedReminder] = useState(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingMetric, setEditingMetric] = useState(null);
   const [recipeModalVisible, setRecipeModalVisible] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+
+  // --- NOVO ESTADO: NOME DO USUÁRIO ---
+  const [nomeUsuario, setNomeUsuario] = useState("");
 
   const [progressoSemanal, setProgressoSemanal] = useState({
     peso: { atual: 74, inicial: 75, meta: 70 },
@@ -56,6 +61,7 @@ export default function Home() {
     inicial: "",
   });
 
+  // Animações de entrada
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -71,6 +77,30 @@ export default function Home() {
       }),
     ]).start();
   }, []);
+
+  // --- BUSCA DO NOME DO USUÁRIO ---
+  useFocusEffect(
+    useCallback(() => {
+      const carregarUsuario = async () => {
+        try {
+          const usuarioRaw = await AsyncStorage.getItem("dadosUsuario");
+          if (usuarioRaw) {
+            const user = JSON.parse(usuarioRaw);
+            const nomeCompleto = user.nome_usuario || user.nome || "Usuário";
+            const primeiroNome = nomeCompleto.split(' ')[0];
+            setNomeUsuario(primeiroNome);
+          } else {
+            setNomeUsuario("Usuário");
+          }
+        } catch (error) {
+          console.error("Erro ao carregar usuário:", error);
+          setNomeUsuario("Usuário");
+        }
+      };
+
+      carregarUsuario();
+    }, [])
+  );
 
   const destaques = [
     {
@@ -277,7 +307,8 @@ export default function Home() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image source={logoApp} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.greeting}>Olá, Vitor</Text>
+          {/* NOME DO USUÁRIO APLICADO AQUI */}
+          <Text style={styles.greeting}>Olá, {nomeUsuario || "Usuário"}</Text>
         </View>
         <TouchableOpacity onPress={() => router.push("/perfil")}>
           <Image 
@@ -857,6 +888,7 @@ export default function Home() {
   );
 }
 
+// ... Restante dos seus estilos aqui
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,

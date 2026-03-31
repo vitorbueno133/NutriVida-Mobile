@@ -31,7 +31,7 @@ const perfilIcon = require("@/assets/images/perfilicon.png");
 const logoApp = require("@/assets/images/logo.png");
 const imgConsultorio = require("@/assets/images/consultorio.jpg");
 
-const API_URL = 'http://192.168.3.243:3000'; 
+const API_URL = 'http://192.168.14.207:3000'; 
 
 export default function HomeAgendamentos() {
   const router = useRouter();
@@ -128,7 +128,6 @@ export default function HomeAgendamentos() {
       const consultorios = await resConsultorios.json();
       consultorios.sort((a: any, b: any) => a.id - b.id);
 
-      // Guardamos a lista completa para a pesquisa
       setTodosConsultorios(consultorios);
 
       const recomendados: any[] = [];
@@ -180,7 +179,7 @@ export default function HomeAgendamentos() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Image source={logoApp} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.headerTitle}>Nutrivida</Text>
+          <Text style={styles.headerTitle}>Agendamento</Text>
         </View>
         <TouchableOpacity onPress={() => router.push("/perfil")}>
           <Image source={perfilIcon} style={styles.perfilImg} resizeMode="cover" />
