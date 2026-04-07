@@ -16,6 +16,11 @@ const rotasAuth = require('./View/authRouters');
 const rotasConsultorios = require('./View/consultoriosRouters');
 const rotasAgendamentos = require('./View/agendamentoRouters');
 
+// 1. IMPORTAR OS ARQUIVOS DE ROTAS FALTANTES // 👈 ADICIONADO AQUI
+// ATENÇÃO: Verifique se os nomes dos arquivos abaixo estão corretos na sua pasta 'View'
+const rotasNutricionistas = require('./View/nutricionistaRouters'); // ou o nome exato do seu arquivo
+const rotasContatos = require('./View/contatosRouters'); // ou o nome exato do seu arquivo de contatos
+
 
 // Middleware
 app.use(express.json());
@@ -65,7 +70,6 @@ app.get("/auth/google",
 );
 
 // Callback do Google após login
-// back-end/src/routes.js ou server.js
 app.get("/auth/google/callback", 
   passport.authenticate("google", { failureRedirect: "/" }),
   (req, res) => {
@@ -82,6 +86,7 @@ app.get("/auth/google/failure", (req, res) => {
   res.send("Falha no login com o Google.");
 });
 
+// REGISTRO DE ROTAS
 app.use("/usuarios", rotasUsuarios);
 app.use("/auth", rotasAuth);
 
@@ -91,5 +96,10 @@ app.use('/respostas', salvarRespostasRouters);
 
 app.use('/agendamentos', rotasAgendamentos);
 app.use('/consultorios', rotasConsultorios);
+
+// 2. DIZER AO EXPRESS PARA USAR AS ROTAS FALTANTES // 👈 ADICIONADO AQUI
+app.use('/nutricionistas', rotasNutricionistas);
+app.use('/contatos', rotasContatos);
+
 
 app.listen(3000, () => console.log("API rodando na porta 3000"));
