@@ -82,29 +82,36 @@ export default function Login() {
 
   // --- VALIDAÇÕES EM LINHA ---
   
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+ const isValidEmail = (email: string) => {
+  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+  return gmailRegex.test(email);
+};
 
-  const isFormValid = isValidEmail(login) && password.length >= 8;
+const isValidPassword = (senha: string) => {
+  const passwordRegex = /^(?=.*[A-Z])(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
+  return passwordRegex.test(senha);
+};
+
+  const isFormValid = isValidEmail(login) && isValidPassword(password);
 
   function handleValidationErrors() {
-    setEmailError("");
-    setPasswordError("");
+  setEmailError("");
+  setPasswordError("");
 
-    if (!login) {
-      setEmailError("Informe o e-mail.");
-    } else if (!isValidEmail(login)) {
-      setEmailError("Formato de e-mail inválido (ex: seu@email.com).");
-    }
-
-    if (!password) {
-      setPasswordError("Informe a senha.");
-    } else if (password.length < 8) {
-      setPasswordError("A senha deve conter no mínimo 8 dígitos.");
-    }
+  if (!login) {
+    setEmailError("Informe o e-mail.");
+  } else if (!isValidEmail(login)) {
+    setEmailError("Use um e-mail @gmail.com válido.");
   }
+
+  if (!password) {
+    setPasswordError("Informe a senha.");
+  } else if (!isValidPassword(password)) {
+    setPasswordError(
+      "A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 número."
+    );
+  }
+}
 
   // --- FUNÇÕES DE API ---
 

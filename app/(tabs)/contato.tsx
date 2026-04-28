@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import { Linking } from 'react-native';
 import { 
   ChevronLeft,
   ChevronDown,
@@ -81,15 +82,53 @@ export default function Contato() {
   }, []);
 
   const canaisContato = [
-    { id: 1, titulo: "Email", info: "contato@nutrivida.com.br", descricao: "Resposta em até 24h", icon: Mail, cor: "#3B82F6" },
-    { id: 2, titulo: "Telefone", info: "(16) 3252-1234", descricao: "Seg-Sex: 8h às 18h", icon: Phone, cor: "#10B981" },
-    { id: 3, titulo: "WhatsApp", info: "(16) 99999-9999", descricao: "Atendimento rápido", icon: MessageCircle, cor: "#25D366" },
-  ];
+  {
+    id: 1,
+    titulo: "WhatsApp",
+    info: "(11) 99999-9999",
+    descricao: "Fale conosco no WhatsApp",
+    icon: MessageCircle,
+    cor: "#25D366",
+    url: "https://wa.me/5511999999999",
+    fallback: "https://wa.me/5511999999999"
+  },
+  {
+    id: 2,
+    titulo: "Telefone",
+    info: "(11) 99999-9999",
+    descricao: "Ligue para nós",
+    icon: Phone,
+    cor: "#34B7F1",
+    url: "tel:+5511999999999"
+  },
+  {
+    id: 3,
+    titulo: "Email",
+    info: "contato@nutrivida.com",
+    descricao: "Envie um email",
+    icon: Mail,
+    cor: "#EA4335",
+    url: "mailto:contato@nutrivida.com"
+  }
+];
 
   const redesSociais = [
-    { id: 1, nome: "Instagram", usuario: "@nutrivida", icon: Instagram, cor: "#E4405F" },
-    { id: 2, nome: "Facebook",  usuario: "/nutrivida", icon: Facebook,  cor: "#1877F2" },
-    { id: 3, nome: "Twitter",   usuario: "@nutrivida", icon: Twitter,   cor: "#1DA1F2" },
+    {
+  id: 1,
+  nome: "Instagram",
+  usuario: "@nutrivida",
+  icon: Instagram,
+  cor: "#E4405F",
+  url: "https://www.instagram.com/site.nutrivida/"
+},
+{
+  id: 2,
+  nome: "Facebook",
+  usuario: "/nutrivida",
+  icon: Facebook,
+  cor: "#1877F2",
+  url: "https://www.facebook.com/profile.php?id=61587956773052"
+}
   ];
 
   const formatPhone = (text: string) => {
@@ -183,26 +222,54 @@ export default function Contato() {
 
           {/* Canais de Contato Rápido */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contato Direto</Text>
-            {canaisContato.map((canal) => {
-              const IconComponent = canal.icon;
-              return (
-                <TouchableOpacity key={canal.id} style={styles.canalCard} activeOpacity={0.7}>
-                  <View style={[styles.canalIconBg, { backgroundColor: `${canal.cor}20` }]}>
-                    <IconComponent color={canal.cor} size={24} strokeWidth={2.5} />
-                  </View>
-                  <View style={styles.canalInfo}>
-                    <Text style={styles.canalTitulo}>{canal.titulo}</Text>
-                    <Text style={styles.canalContato}>{canal.info}</Text>
-                    <Text style={styles.canalDescricao}>{canal.descricao}</Text>
-                  </View>
-                  <View style={styles.canalArrow}>
-                    <ChevronLeft color="#666" size={20} strokeWidth={2} style={{ transform: [{ rotate: '180deg' }] }} />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+  <Text style={styles.sectionTitle}>Contato Direto</Text>
+  {canaisContato.map((canal) => {
+    const IconComponent = canal.icon;
+
+    const handlePress = async () => {
+  try {
+    const supported = await Linking.canOpenURL(canal.url);
+
+    if (supported) {
+      await Linking.openURL(canal.url);
+    } else if (canal.fallback) {
+      await Linking.openURL(canal.fallback);
+    } else {
+      Alert.alert("Erro", "Não foi possível abrir o aplicativo.");
+    }
+  } catch (error) {
+    Alert.alert("Erro", "Algo deu errado ao abrir o link.");
+  }
+};
+    return (
+      <TouchableOpacity
+        key={canal.id}
+        style={styles.canalCard}
+        activeOpacity={0.7}
+        onPress={handlePress}
+      >
+        <View style={[styles.canalIconBg, { backgroundColor: `${canal.cor}20` }]}>
+          <IconComponent color={canal.cor} size={24} strokeWidth={2.5} />
+        </View>
+
+        <View style={styles.canalInfo}>
+          <Text style={styles.canalTitulo}>{canal.titulo}</Text>
+          <Text style={styles.canalContato}>{canal.info}</Text>
+          <Text style={styles.canalDescricao}>{canal.descricao}</Text>
+        </View>
+
+        <View style={styles.canalArrow}>
+          <ChevronLeft
+            color="#666"
+            size={20}
+            strokeWidth={2}
+            style={{ transform: [{ rotate: '180deg' }] }}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  })}
+</View>
 
           {/* Formulário de Contato */}
           <View style={styles.section}>
@@ -300,22 +367,32 @@ export default function Contato() {
 
           {/* Redes Sociais */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Redes Sociais</Text>
-            <View style={styles.socialContainer}>
-              {redesSociais.map((rede) => {
-                const IconComponent = rede.icon;
-                return (
-                  <TouchableOpacity key={rede.id} style={styles.socialCard} activeOpacity={0.7}>
-                    <View style={[styles.socialIconBg, { backgroundColor: `${rede.cor}20` }]}>
-                      <IconComponent color={rede.cor} size={28} strokeWidth={2} />
-                    </View>
-                    <Text style={styles.socialNome}>{rede.nome}</Text>
-                    <Text style={styles.socialUsuario}>{rede.usuario}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+  <Text style={styles.sectionTitle}>Redes Sociais</Text>
+  <View style={styles.socialContainer}>
+    {redesSociais.map((rede) => {
+      const IconComponent = rede.icon;
+
+      const handlePress = () => {
+        Linking.openURL(rede.url);
+      };
+
+      return (
+        <TouchableOpacity
+          key={rede.id}
+          style={styles.socialCard}
+          activeOpacity={0.7}
+          onPress={handlePress}
+        >
+          <View style={[styles.socialIconBg, { backgroundColor: `${rede.cor}20` }]}>
+            <IconComponent color={rede.cor} size={28} strokeWidth={2} />
           </View>
+          <Text style={styles.socialNome}>{rede.nome}</Text>
+          <Text style={styles.socialUsuario}>{rede.usuario}</Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+</View>
 
           {/* Informações Adicionais */}
           <View style={styles.infoSection}>

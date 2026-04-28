@@ -46,14 +46,20 @@ const Put = async (request, response) => {
         const id = request.params.id;
         const payload = request.body;
 
-        // Criptografa a nova senha se ela foi enviada
-        let senhaCriptografada = null;
-        if (payload.senha) {
-            senhaCriptografada = await bcrypt.hash(payload.senha, 10);
-        }
+        let queryText = '';
+        let values = [];
 
-        const queryText = 'UPDATE usuarios SET nome_usuario = ?, senha = ?, email = ? WHERE id = ?';
-        const values = [payload.nome_usuario, senhaCriptografada || payload.senha, payload.email, id];
+        // Verifica se a requisição enviou uma nova senha (não está vazia ou nula)
+        if (payload.senha && payload.senha.trim() !== '') {
+            // Se enviou, criptografa a nova senha e atualiza todos os campos
+            const senhaCriptografada = await bcrypt.hash(payload.senha, 10);
+            queryText = 'UPDATE usuarios SET nome_usuario = ?, senha = ?, email = ? WHERE id = ?';
+            values = [payload.nome_usuario, senhaCriptografada, payload.email, id];
+        } else {
+            // Se NÃO enviou senha, atualiza APENAS o nome e o email, preservando a senha antiga
+            queryText = 'UPDATE usuarios SET nome_usuario = ?, email = ? WHERE id = ?';
+            values = [payload.nome_usuario, payload.email, id];
+        }
 
         const res = await banco.query(queryText, values);
 
@@ -96,7 +102,6 @@ const Post = async (request, response) => {
     response.status(500).send({ message: "Falha ao executar a ação!" });
   } 
 };
-
 
 const SolicitarResetSenha = async (request, response) => {
     const { email } = request.body;
@@ -238,7 +243,6 @@ const Login = async (request, response) => {
         response.status(500).send({ message: "Erro ao fazer login." });
     }
 };
-
 
 module.exports = {
   GetAll,

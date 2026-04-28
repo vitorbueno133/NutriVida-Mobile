@@ -86,35 +86,45 @@ export default function Register() {
   };
 
   // --- VALIDAÇÕES EM LINHA ---
-  const isValidEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+ const isValidEmail = (email: string) => {
+  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+  return gmailRegex.test(email);
+};
 
+const isValidPassword = (senha: string) => {
+  // mínimo 8 caracteres, 1 letra maiúscula, 1 letra e 1 número
+  const passwordRegex = /^(?=.*[A-Z])(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
+  return passwordRegex.test(senha);
+};
   // O formulário só é válido se todos os campos passarem nas regras
-  const isFormValid = nomes.trim() !== "" && isValidEmail(email) && senha.length >= 8;
+  const isFormValid =
+  nomes.trim() !== "" &&
+  isValidEmail(email) &&
+  isValidPassword(senha);
 
   function handleValidationErrors() {
-    setNomeError("");
-    setEmailError("");
-    setSenhaError("");
+  setNomeError("");
+  setEmailError("");
+  setSenhaError("");
 
-    if (!nomes.trim()) {
-      setNomeError("Informe seu nome completo.");
-    }
-
-    if (!email) {
-      setEmailError("Informe o e-mail.");
-    } else if (!isValidEmail(email)) {
-      setEmailError("Formato de e-mail inválido (ex: seu@email.com).");
-    }
-
-    if (!senha) {
-      setSenhaError("Informe a senha.");
-    } else if (senha.length < 8) {
-      setSenhaError("A senha deve conter no mínimo 8 dígitos.");
-    }
+  if (!nomes.trim()) {
+    setNomeError("Informe seu nome completo.");
   }
+
+  if (!email) {
+    setEmailError("Informe o e-mail.");
+  } else if (!isValidEmail(email)) {
+    setEmailError("Use um e-mail @gmail.com válido.");
+  }
+
+  if (!senha) {
+    setSenhaError("Informe a senha.");
+  } else if (!isValidPassword(senha)) {
+    setSenhaError(
+      "A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 número."
+    );
+  }
+}
 
   // --- FUNÇÕES DE API ---
   async function onClickRegistrar() {
