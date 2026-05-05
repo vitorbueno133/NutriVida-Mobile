@@ -214,6 +214,13 @@ export default function TabLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="receitas"
+          options={{
+            href: null,
+          }}
+        />
+
 
         <Tabs.Screen
           name="privacidade"

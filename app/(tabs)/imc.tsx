@@ -9,7 +9,6 @@ import {
   Image,
   Animated,
   TextInput,
-  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -29,6 +28,10 @@ export default function IMC() {
   const [altura, setAltura] = useState("");
   const [imc, setImc] = useState<number | null>(null);
   const [classificacao, setClassificacao] = useState<any>(null);
+
+  // Novos estados para exibir os erros nos campos
+  const [pesoErro, setPesoErro] = useState("");
+  const [alturaErro, setAlturaErro] = useState("");
 
   useEffect(() => {
     Animated.parallel([
@@ -103,22 +106,66 @@ export default function IMC() {
     },
   ];
 
+  // --- MÁSCARAS ---
+  const handlePesoChange = (texto: string) => {
+    setPesoErro("");
+    // Permite números, ponto e vírgula. Troca vírgula por ponto.
+    let v = texto.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+    
+    // Evita múltiplos pontos
+    const parts = v.split(".");
+    if (parts.length > 2) {
+      v = parts[0] + "." + parts[1];
+    }
+    
+    // Limita a 3 dígitos antes do ponto (max 999)
+    if (parts[0].length > 3) {
+      v = parts[0].substring(0, 3) + (parts.length > 1 ? "." + parts[1] : "");
+    }
+    
+    // Limita a 1 casa decimal (ex: 70.5)
+    if (parts.length > 1 && parts[1].length > 1) {
+      v = parts[0] + "." + parts[1].substring(0, 1);
+    }
+    
+    setPeso(v);
+  };
+
+  const handleAlturaChange = (texto: string) => {
+    setAlturaErro("");
+    // Remove tudo que não for número para criar uma máscara automática
+    let v = texto.replace(/\D/g, "");
+    
+    // Limita a 3 números (ex: 175)
+    if (v.length > 3) v = v.substring(0, 3);
+    
+    // Coloca o ponto automaticamente após o primeiro número (ex: 1.75)
+    if (v.length > 1) {
+      v = v.replace(/^(\d{1})(\d+)/, "$1.$2");
+    }
+    
+    setAltura(v);
+  };
+
+  // --- VALIDAÇÃO E CÁLCULO ---
   const calcularIMC = () => {
-    const pesoNum = parseFloat(peso.replace(",", "."));
-    const alturaNum = parseFloat(altura.replace(",", "."));
+    let hasError = false;
+    const pesoNum = parseFloat(peso);
+    const alturaNum = parseFloat(altura);
 
-    if (!pesoNum || !alturaNum) {
-      Alert.alert("Erro", "Por favor, preencha peso e altura corretamente.");
-      return;
+    if (!peso || isNaN(pesoNum) || pesoNum <= 0 || pesoNum > 500) {
+      setPesoErro("Digite um peso válido entre 1 e 500 kg.");
+      hasError = true;
     }
 
-    if (pesoNum <= 0 || pesoNum > 500) {
-      Alert.alert("Erro", "Peso inválido. Digite um valor entre 1 e 500 kg.");
-      return;
+    if (!altura || isNaN(alturaNum) || alturaNum <= 0.5 || alturaNum > 3) {
+      setAlturaErro("Digite uma altura válida entre 0.5 e 3 metros.");
+      hasError = true;
     }
 
-    if (alturaNum <= 0 || alturaNum > 3) {
-      Alert.alert("Erro", "Altura inválida. Digite um valor entre 0.5 e 3 metros.");
+    if (hasError) {
+      setImc(null);
+      setClassificacao(null);
       return;
     }
 
@@ -142,6 +189,8 @@ export default function IMC() {
   const limparCalculo = () => {
     setPeso("");
     setAltura("");
+    setPesoErro("");
+    setAlturaErro("");
     setImc(null);
     setClassificacao(null);
     resultAnim.setValue(0);
@@ -191,35 +240,37 @@ export default function IMC() {
           {/* Peso */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Peso (kg)</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, pesoErro ? styles.inputErrorBorder : null]}>
               <TextInput
                 style={styles.input}
-                placeholder="Ex: 70"
+                placeholder="Ex: 70.5"
                 placeholderTextColor="#666"
                 keyboardType="decimal-pad"
                 value={peso}
-                onChangeText={setPeso}
-                maxLength={6}
+                onChangeText={handlePesoChange}
+                maxLength={5}
               />
               <Text style={styles.inputUnit}>kg</Text>
             </View>
+            {pesoErro ? <Text style={styles.errorText}>{pesoErro}</Text> : null}
           </View>
 
           {/* Altura */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Altura (m)</Text>
-            <View style={styles.inputWrapper}>
+            <View style={[styles.inputWrapper, alturaErro ? styles.inputErrorBorder : null]}>
               <TextInput
                 style={styles.input}
                 placeholder="Ex: 1.75"
                 placeholderTextColor="#666"
-                keyboardType="decimal-pad"
+                keyboardType="numeric"
                 value={altura}
-                onChangeText={setAltura}
+                onChangeText={handleAlturaChange}
                 maxLength={4}
               />
               <Text style={styles.inputUnit}>m</Text>
             </View>
+            {alturaErro ? <Text style={styles.errorText}>{alturaErro}</Text> : null}
           </View>
 
           {/* Botões */}
@@ -518,6 +569,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 2,
     borderColor: "transparent",
+  },
+
+  inputErrorBorder: {
+    borderColor: "#EF4444",
+  },
+
+  errorText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 6,
+    marginLeft: 4,
   },
 
   input: {

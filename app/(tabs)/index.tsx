@@ -20,7 +20,9 @@ import {
   Lightbulb, 
   HelpCircle, 
   Droplets, 
-  Moon, 
+  Moon,
+  ChevronRight,
+  ChevronLeft,
   Apple, 
   X,
   TrendingDown,
@@ -341,7 +343,7 @@ export default function Home() {
             activeOpacity={0.8}
           >
             <Text style={styles.heroCTAText}>Começar Agora</Text>
-            <Text style={styles.heroCTAArrow}>→</Text>
+            <ChevronRight color="#002212ff" size={22} />
           </TouchableOpacity>
         </Animated.View>
 
@@ -369,11 +371,12 @@ export default function Home() {
         </View>
 
         {/* Receitas - Versão Compacta */}
-        <View style={styles.section}>
+       <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Receitas Gratuitas</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>Ver todas →</Text>
+            <TouchableOpacity onPress={() => router.push("/receitas")} activeOpacity={0.7}>
+              <Text style={styles.seeAll}>Ver todas</Text>
+              
             </TouchableOpacity>
           </View>
 

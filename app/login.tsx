@@ -41,9 +41,10 @@ export default function Login() {
   const [emailRecuperacao, setEmailRecuperacao] = useState("");
   const [token, setToken] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
+  const [isSendingToken, setIsSendingToken] = useState(false); 
   
-  // Estado do Alerta Customizado
-  const [alertConfig, setAlertConfig] = useState({ visible: false, title: "", message: "" });
+  // Estado do Alerta Customizado, agora com 'isSuccess'
+  const [alertConfig, setAlertConfig] = useState({ visible: false, title: "", message: "", isSuccess: false });
   
   // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -71,9 +72,9 @@ export default function Login() {
     ]).start();
   }, []);
 
-  // --- FUNÇÃO AUXILIAR DE ALERTA ---
-  const showCustomAlert = (title: string, message: string) => {
-    setAlertConfig({ visible: true, title, message });
+  // --- FUNÇÃO AUXILIAR DE ALERTA ATUALIZADA ---
+  const showCustomAlert = (title: string, message: string, isSuccess: boolean = false) => {
+    setAlertConfig({ visible: true, title, message, isSuccess });
   };
 
   const closeCustomAlert = () => {
@@ -82,36 +83,36 @@ export default function Login() {
 
   // --- VALIDAÇÕES EM LINHA ---
   
- const isValidEmail = (email: string) => {
-  const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-  return gmailRegex.test(email);
-};
+  const isValidEmail = (email: string) => {
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+    return gmailRegex.test(email);
+  };
 
-const isValidPassword = (senha: string) => {
-  const passwordRegex = /^(?=.*[A-Z])(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
-  return passwordRegex.test(senha);
-};
+  const isValidPassword = (senha: string) => {
+    const passwordRegex = /^(?=.*[A-Z])(?=.*[a-zA-Z])(?=.*\d).{8,}$/;
+    return passwordRegex.test(senha);
+  };
 
   const isFormValid = isValidEmail(login) && isValidPassword(password);
 
   function handleValidationErrors() {
-  setEmailError("");
-  setPasswordError("");
+    setEmailError("");
+    setPasswordError("");
 
-  if (!login) {
-    setEmailError("Informe o e-mail.");
-  } else if (!isValidEmail(login)) {
-    setEmailError("Use um e-mail @gmail.com válido.");
-  }
+    if (!login) {
+      setEmailError("Informe o e-mail.");
+    } else if (!isValidEmail(login)) {
+      setEmailError("Use um e-mail @gmail.com válido.");
+    }
 
-  if (!password) {
-    setPasswordError("Informe a senha.");
-  } else if (!isValidPassword(password)) {
-    setPasswordError(
-      "A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 número."
-    );
+    if (!password) {
+      setPasswordError("Informe a senha.");
+    } else if (!isValidPassword(password)) {
+      setPasswordError(
+        "A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula e 1 número."
+      );
+    }
   }
-}
 
   // --- FUNÇÕES DE API ---
 
@@ -158,21 +159,34 @@ const isValidPassword = (senha: string) => {
       return;
     }
 
+    setIsSendingToken(true);
+
     try {
-      const response = await fetch(`${API_URL}/recuperar-senha`, {
+      const response = await fetch(`${API_URL}/usuarios/solicitar-reset`, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailRecuperacao }),
       });
 
-      if (!response.ok) throw new Error("Erro ao solicitar recuperação");
+      const textResponse = await response.text();
+      let responseData = {};
+      try {
+        responseData = JSON.parse(textResponse);
+      } catch (e) {}
+
+      if (!response.ok) {
+        throw new Error(responseData.message || "Erro ao solicitar recuperação. Tente novamente.");
+      }
 
       setModalRecuperacaoVisible(false);
-      showCustomAlert("E-mail enviado", "Verifique sua caixa de entrada para pegar o token.");
+      // Aqui passamos 'true' para o alerta ser de SUCESSO (Verde)
+      showCustomAlert("E-mail enviado", "Se o e-mail estiver cadastrado, o token chegará na sua caixa de entrada.", true);
       setModalRedefinirVisible(true);
       
-    } catch (error) {
-      showCustomAlert("Erro", "Não foi possível processar sua solicitação.");
+    } catch (error: any) {
+      showCustomAlert("Aviso", error.message);
+    } finally {
+      setIsSendingToken(false);
     }
   };
 
@@ -187,19 +201,28 @@ const isValidPassword = (senha: string) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/redefinir-senha`, {
+      const response = await fetch(`${API_URL}/usuarios/redefinir-senha`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, novaSenha }),
       });
 
-      if (!response.ok) throw new Error("Token inválido ou expirado.");
+      const responseText = await response.text();
+      let responseData = {};
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {}
+
+      if (!response.ok) {
+        throw new Error(responseData.message || "Falha no servidor.");
+      }
 
       setModalRedefinirVisible(false);
-      showCustomAlert("Sucesso", "Senha redefinida com sucesso! Pode fazer o login.");
+      // Aqui passamos 'true' para o alerta ser de SUCESSO (Verde)
+      showCustomAlert("Sucesso", "Senha redefinida com sucesso! Pode fazer o login.", true);
       
-    } catch (error) {
-      showCustomAlert("Erro", "Não foi possível redefinir a senha.");
+    } catch (error: any) {
+      showCustomAlert("Erro Detalhado", `Motivo: ${error.message}`);
     }
   };
 
@@ -367,15 +390,14 @@ const isValidPassword = (senha: string) => {
           {/* Login Social */}
           <View style={styles.socialContainer}>
             <TouchableOpacity
-  style={styles.socialButton}
-  activeOpacity={0.8}
-  onPress={() => {
-    // Endereço da sua API que inicia o fluxo do Passport Google
-    Linking.openURL(`${API_URL}/auth/google`);
-  }}
->
-  <Text style={styles.socialButtonText}>Login com Google</Text>
-</TouchableOpacity>
+              style={styles.socialButton}
+              activeOpacity={0.8}
+              onPress={() => {
+                Linking.openURL(`${API_URL}/auth/google`);
+              }}
+            >
+              <Text style={styles.socialButtonText}>Login com Google</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -408,9 +430,13 @@ const isValidPassword = (senha: string) => {
               />
             </View>
 
-            <TouchableOpacity style={styles.modalButton} onPress={handleEnviarToken}>
+            <TouchableOpacity 
+              style={[styles.modalButton, isSendingToken && { opacity: 0.7 }]} 
+              onPress={handleEnviarToken}
+              disabled={isSendingToken}
+            >
               <LinearGradient colors={["#00E676", "#00C853"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.buttonGradientModal}>
-                <Text style={styles.buttonText}>Enviar Token</Text>
+                <Text style={styles.buttonText}>{isSendingToken ? "Enviando..." : "Enviar Token"}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -460,11 +486,12 @@ const isValidPassword = (senha: string) => {
         </View>
       </Modal>
 
-      {/* --- ALERTA CUSTOMIZADO ESTILIZADO --- */}
+      {/* --- ALERTA CUSTOMIZADO ESTILIZADO (VERDE/VERMELHO) --- */}
       <Modal visible={alertConfig.visible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.alertBox}>
-            <AlertCircle color="#EF4444" size={40} style={{ marginBottom: 15 }} />
+          {/* A borda fica verde se for sucesso, ou vermelha se for erro */}
+          <View style={[styles.alertBox, { borderColor: alertConfig.isSuccess ? 'rgba(0, 230, 118, 0.3)' : 'rgba(239, 68, 68, 0.3)' }]}>
+            <AlertCircle color={alertConfig.isSuccess ? "#00E676" : "#EF4444"} size={40} style={{ marginBottom: 15 }} />
             <Text style={styles.alertTitle}>{alertConfig.title}</Text>
             <Text style={styles.alertMessage}>{alertConfig.message}</Text>
             
@@ -532,7 +559,7 @@ const styles = StyleSheet.create({
     padding: 25, 
     alignItems: "center",
     borderWidth: 1, 
-    borderColor: "rgba(239, 68, 68, 0.3)" // Borda levemente vermelha para erro
+    // A borda agora é dinâmica lá em cima
   },
   alertTitle: { 
     fontSize: 20, 

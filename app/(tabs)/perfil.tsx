@@ -29,6 +29,7 @@ import {
   Award,
   TrendingUp,
   ChevronRight,
+  ChevronLeft,
   Check,
   X,
 } from "lucide-react-native";
@@ -194,7 +195,7 @@ export default function Perfil() {
     <LinearGradient colors={["#0a1f1a", "#0f172a"]} style={styles.gradient}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>←</Text>
+          <ChevronLeft color="#00E676" size={32} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Image source={logoApp} style={styles.logo} resizeMode="contain" />
